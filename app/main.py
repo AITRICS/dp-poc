@@ -51,13 +51,14 @@ async def main() -> None:
     await asyncio.sleep(0.1)
 
     # 4. Publish concrete event objects
-    await publisher.publish(topic, PipelineStarted(pipeline_name="daily_sales_report"))
+    await publisher.publish(topic, PipelineStarted(pipeline_name="daily_sales_report", topic=topic))
     await publisher.publish(
-        topic, DataIngestionComplete(source_name="pos_terminal_1", rows_ingested=1500)
+        topic,
+        DataIngestionComplete(source_name="pos_terminal_1", rows_ingested=1500, topic=topic),
     )
 
     # 5. Send CompletedEvent to signal the end of the stream
-    await publisher.publish(topic, CompletedEvent())
+    await publisher.publish(topic, CompletedEvent(topic=topic))
 
     # 6. Wait for the consumer to finish processing
     await consumer_task

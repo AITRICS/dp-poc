@@ -11,9 +11,12 @@ class EventBase(BaseModel):
     Note: This is a marker class for all events, no abstract methods required.
     """
 
-    topic: str = Field(init=False, default="")
-    event_id: uuid.UUID = Field(default_factory=uuid.uuid4, init=False)
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), init=False)
+    topic: str = Field(examples=["data_pipeline_events"])
+    event_id: uuid.UUID = Field(default_factory=uuid.uuid4, examples=["Event ID"])
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        examples=["2025-01-01 00:00:00"],
+    )
 
 
 class CompletedEvent(EventBase):
