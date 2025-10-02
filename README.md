@@ -42,23 +42,20 @@ make pre-commit
 ### 사용 가능한 명령어
 
 ```bash
-# 코드 린팅 (자동 수정)
-make lint
+# 코드 품질
+make lint          # 코드 린팅 (자동 수정)
+make format        # 코드 포맷팅
+make type-check    # 타입 체크
+make pre-commit    # pre-commit 실행 (모든 파일)
 
-# 코드 포맷팅
-make format
+# 테스트
+make test          # 모든 테스트 실행
+make test-cov      # 커버리지와 함께 테스트 실행
+make test-unit     # 유닛 테스트만 실행
+make test-integration  # 통합 테스트만 실행
 
-# 타입 체크
-make type-check
-
-# pre-commit 실행 (모든 파일)
-make pre-commit
-
-# 애플리케이션 실행
-make run
-
-# 테스트 실행
-make test
+# 실행
+make run           # 애플리케이션 실행
 ```
 
 ## 프로젝트 구조
@@ -70,6 +67,12 @@ dp-poc/
 │   │   ├── domain/          # 도메인 계층 (포트 정의)
 │   │   └── infrastructure/  # 인프라 계층 (어댑터 구현)
 │   └── main.py              # 애플리케이션 진입점
+├── tests/                   # 테스트 코드
+│   ├── conftest.py          # pytest 설정 및 fixtures
+│   ├── test_broker.py       # Broker 테스트
+│   ├── test_publisher.py    # Publisher 테스트
+│   ├── test_consumer.py     # Consumer 테스트
+│   └── test_integration.py  # 통합 테스트
 ├── pyproject.toml           # 프로젝트 설정 및 의존성
 ├── Makefile                 # 개발 명령어
 └── .pre-commit-config.yaml  # pre-commit 설정

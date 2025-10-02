@@ -37,7 +37,19 @@ pre-commit-install:
 
 test:
 	@echo "Running tests...";
-	@uv run python -m pytest;
+	@uv run pytest -v;
+
+test-cov:
+	@echo "Running tests with coverage...";
+	@uv run pytest -v --cov --cov-report=term-missing --cov-report=html;
+
+test-unit:
+	@echo "Running unit tests...";
+	@uv run pytest -v -m unit;
+
+test-integration:
+	@echo "Running integration tests...";
+	@uv run pytest -v -m integration;
 
 run:
 	@echo "Running main application...";
