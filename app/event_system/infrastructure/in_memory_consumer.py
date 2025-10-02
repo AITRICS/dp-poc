@@ -1,3 +1,4 @@
+import logging
 from typing import TypeVar, Generic
 
 from app.event_system.domain.events import EventBase
@@ -18,5 +19,5 @@ class InMemoryConsumer(ConsumerPort[E], Generic[E]):
         queue = await self.broker.get_queue(topic)
         while True:
             event = await queue.get()
-            print(f"Consumed from {topic}: {event.__class__.__name__}(id={event.event_id}, content={event})")
+            logging.info(f"Consumed from {topic}: {event.__class__.__name__}(id={event.event_id}, content={event})")
             queue.task_done()
