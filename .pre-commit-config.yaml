@@ -1,28 +1,39 @@
 repos:
-  # Ruff - Python linter and formatter
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+  # Ruff - Python linter and formatter (using local uv environment)
+  - repo: local
     hooks:
-      # Run the linter
       - id: ruff
-        args: [--fix]
-      # Run the formatter
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
       - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        require_serial: true
 
-  # isort - Import sorting
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.13.2
+  # isort - Import sorting (using local uv environment)
+  - repo: local
     hooks:
       - id: isort
-        args: ["--profile", "black", "--line-length", "100"]
+        name: isort
+        entry: uv run isort --profile black --line-length 100
+        language: system
+        types: [python]
 
-  # mypy - Static type checking
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+  # mypy - Static type checking (using local uv environment)
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies: []
-        args: [--strict]
+        name: mypy
+        entry: uv run mypy .
+        language: system
+        types: [python]
+        require_serial: true
+        pass_filenames: false
 
   # Basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

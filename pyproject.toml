@@ -7,6 +7,11 @@ dependencies = [
     "pydantic>=2.11.9",
 ]
 
+[tool.uv]
+# 가상환경 경로 설정 (기본값은 .venv)
+# managed = true  # uv가 가상환경을 관리하도록 설정
+# venv = ".venv"  # 가상환경 디렉토리 이름
+
 [project.optional-dependencies]
 dev = [
     "mypy>=1.13.0",
@@ -49,6 +54,7 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "UP046", # Generic class uses Generic subclass (keep for Python 3.11 compatibility)
 ]
 
 [tool.ruff.lint.per-file-ignores]
