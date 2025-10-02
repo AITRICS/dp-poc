@@ -1,7 +1,9 @@
-from typing import TypeVar, Generic, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Generic, TypeVar
 
-from app.event_system.domain.events import CompletedEvent, EventBase
 from app.event_system.domain.consumer_port import ConsumerPort
+from app.event_system.domain.events import CompletedEvent, EventBase
+
 from .in_memory_broker import InMemoryBroker
 
 E = TypeVar("E", bound=EventBase)
@@ -25,9 +27,7 @@ class InMemoryConsumer(ConsumerPort[E], Generic[E]):
 
         while True:
             event = await queue.get()
-            print(
-                f"Consumed from {topic}: {event.__class__.__name__}(id={event.event_id})"
-            )
+            print(f"Consumed from {topic}: {event.__class__.__name__}(id={event.event_id})")
 
             # When CompletedEvent is received, end the stream
             if isinstance(event, CompletedEvent):

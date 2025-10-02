@@ -1,9 +1,9 @@
 import asyncio
 from collections import defaultdict
-from typing import TypeVar, Generic
+from typing import TypeVar
 
-from app.event_system.domain.events import EventBase
 from app.event_system.domain.broker_port import BrokerPort
+from app.event_system.domain.events import EventBase
 
 E = TypeVar("E", bound=EventBase)
 
@@ -14,7 +14,7 @@ class InMemoryBroker(BrokerPort[E]):
     It uses a dictionary of asyncio.Queue to manage topics.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.queues: defaultdict[str, asyncio.Queue[E]] = defaultdict(asyncio.Queue)
 
     async def get_queue(self, topic: str) -> asyncio.Queue[E]:
@@ -24,10 +24,10 @@ class InMemoryBroker(BrokerPort[E]):
 
     async def close(self) -> None:
         for queue in self.queues.values():
-            queue.join()
+            await queue.join()
 
-    async def create_queue(self, topic: str) -> None:
-        if topic not in self.queues:
+    async def create_queue(self, topic: str) -> asyncio.Queue[E]:
+        if topic in self.queues:
             raise ValueError(f"Queue for topic {topic} already exists")
         self.queues[topic] = asyncio.Queue()
         return self.queues[topic]

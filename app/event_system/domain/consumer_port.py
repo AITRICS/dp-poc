@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Generic, TypeVar
+
 from .events import EventBase
 
 E = TypeVar("E", bound=EventBase)
@@ -12,6 +14,6 @@ class ConsumerPort(ABC, Generic[E]):
     """
 
     @abstractmethod
-    async def consume(self, topic: str) -> AsyncGenerator[E, None]:
+    def consume(self, topic: str) -> AsyncGenerator[E, None]:
         """Consumes events from the specified topic as an async generator."""
         raise NotImplementedError

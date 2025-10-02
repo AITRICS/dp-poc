@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Generic
+from typing import Any, Generic, TypeVar
+
 from .events import EventBase
 
 E = TypeVar("E", bound=EventBase)

@@ -1,25 +1,22 @@
 import asyncio
-from dataclasses import dataclass
 
-from app.event_system.domain.events import EventBase, CompletedEvent
+from app.event_system.domain.events import CompletedEvent, EventBase
 from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
-from app.event_system.infrastructure.in_memory_publisher import InMemoryPublisher
 from app.event_system.infrastructure.in_memory_consumer import InMemoryConsumer
+from app.event_system.infrastructure.in_memory_publisher import InMemoryPublisher
 
 
 # 1. Define concrete events based on EventBase
-@dataclass(frozen=True)
 class PipelineStarted(EventBase):
     pipeline_name: str
 
 
-@dataclass(frozen=True)
 class DataIngestionComplete(EventBase):
     source_name: str
     rows_ingested: int
 
 
-async def consume_events(consumer, topic):
+async def consume_events(consumer: InMemoryConsumer[EventBase], topic: str) -> None:
     """
     이벤트를 소비하는 비동기 함수
     """
@@ -35,15 +32,15 @@ async def consume_events(consumer, topic):
     print("Event consumption completed.")
 
 
-async def main():
+async def main() -> None:
     """
     Demonstrates the highly decoupled event system where ports and adapters
     are in separate files, using async generator pattern for event consumption.
     """
     # 2. Instantiate the infrastructure-specific implementation (Adapters)
-    broker = InMemoryBroker()
-    publisher = InMemoryPublisher(broker)
-    consumer = InMemoryConsumer(broker)
+    broker: InMemoryBroker[EventBase] = InMemoryBroker()
+    publisher: InMemoryPublisher[EventBase] = InMemoryPublisher(broker)
+    consumer: InMemoryConsumer[EventBase] = InMemoryConsumer(broker)
 
     topic = "data_pipeline_events"
 
@@ -73,8 +70,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except ImportError as e:
         print(f"\n[Execution Error] {e}")
-        print(
-            "Please run this script from the project's root directory using the command:"
-        )
+        print("Please run this script from the project's root directory using the command:")
         print("python -m app.main")
     print("Simulation finished.")
