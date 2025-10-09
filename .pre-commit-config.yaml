@@ -1,0 +1,48 @@
+repos:
+  # Ruff - Python linter and formatter (using local uv environment)
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
+      - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        require_serial: true
+
+  # isort - Import sorting (using local uv environment)
+  - repo: local
+    hooks:
+      - id: isort
+        name: isort
+        entry: uv run isort --profile black --line-length 100
+        language: system
+        types: [python]
+
+  # mypy - Static type checking (using local uv environment)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy .
+        language: system
+        types: [python]
+        require_serial: true
+        pass_filenames: false
+
+  # Basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: debug-statements

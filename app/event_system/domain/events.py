@@ -1,13 +1,25 @@
-from abc import ABC
-from dataclasses import dataclass, field
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-@dataclass(frozen=True)
-class EventBase(ABC):
+from pydantic import BaseModel, Field
+
+
+class EventBase(BaseModel):
     """
     The abstract base class for all events in the system.
     It automatically provides a unique event ID and a timestamp.
+    Note: This is a marker class for all events, no abstract methods required.
     """
-    event_id: uuid.UUID = field(default_factory=uuid.uuid4, init=False)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc), init=False)
+
+    topic: str = Field(default="", examples=["data_pipeline_events"])
+    event_id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class CompletedEvent(EventBase):
+    """
+    The abstract base class for all completed events in the system.
+    It automatically provides a unique event ID and a timestamp.
+    """
+
+    pass
