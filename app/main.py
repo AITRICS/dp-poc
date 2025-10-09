@@ -1,4 +1,6 @@
 import asyncio
+import logging
+from dataclasses import dataclass
 
 from app.event_system.domain.events import CompletedEvent, EventBase
 from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
@@ -44,8 +46,9 @@ async def main() -> None:
 
     topic = "data_pipeline_events"
 
-    # 3. Start consuming events in the background
-    consumer_task = asyncio.create_task(consume_events(consumer, topic))
+    # 3. Start the consumer in the background
+    logging.info("Starting consumer task...")
+    consumer_task = asyncio.create_task(consumer.consume(topic))
 
     # Give the consumer a moment to start up
     await asyncio.sleep(0.1)
@@ -63,14 +66,26 @@ async def main() -> None:
     # 6. Wait for the consumer to finish processing
     await consumer_task
 
+    # 6. Gracefully shut down the consumer
+    consumer_task.cancel()
+    try:
+        await consumer_task
+    except asyncio.CancelledError:
+        logging.info("Consumer task has been successfully cancelled.")
 
 if __name__ == "__main__":
-    print("Running final decoupled event system simulation...")
-    # To run this script, execute `python -m app.main` from the project root directory.
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+    )
+
+    logging.info("Running final decoupled event system simulation...")
     try:
         asyncio.run(main())
     except ImportError as e:
-        print(f"\n[Execution Error] {e}")
-        print("Please run this script from the project's root directory using the command:")
-        print("python -m app.main")
-    print("Simulation finished.")
+        logging.error(f"[Execution Error] {e}")
+        logging.error("Please run this script from the project's root directory using the command:")
+        logging.error("python -m app.main")
+
+    logging.info("Simulation finished.")

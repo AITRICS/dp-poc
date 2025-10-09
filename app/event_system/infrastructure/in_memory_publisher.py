@@ -1,4 +1,5 @@
-from typing import Generic, TypeVar
+import logging
+from typing import TypeVar, Generic
 
 from app.event_system.domain.events import EventBase
 from app.event_system.domain.publisher_port import PublisherPort
@@ -20,4 +21,4 @@ class InMemoryPublisher(PublisherPort[E], Generic[E]):
     async def publish(self, topic: str, event: E) -> None:
         queue = await self.broker.get_queue(topic)
         await queue.put(event)
-        print(f"Published to {topic}: {event.__class__.__name__}(id={event.event_id})")
+        logging.info(f"Published to {topic}: {event.__class__.__name__}(id={event.event_id})")
