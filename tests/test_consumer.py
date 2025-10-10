@@ -27,11 +27,11 @@ class TestInMemoryConsumer:
         test_topic: str,
     ) -> None:
         """Test consuming a single event."""
-        event = DummyEvent(message="Test message")
+        event = DummyEvent(topic=test_topic, message="Test message")
 
         # Publish event
         await publisher.publish(test_topic, event)
-        await publisher.publish(test_topic, CompletedEvent())
+        await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
 
         # Consume events
         consumed_events = []
@@ -49,15 +49,15 @@ class TestInMemoryConsumer:
         test_topic: str,
     ) -> None:
         """Test consuming multiple events."""
-        event1 = DummyEvent(message="First")
-        event2 = DummyEvent(message="Second")
-        event3 = AnotherDummyEvent(value=42)
+        event1 = DummyEvent(topic=test_topic, message="First")
+        event2 = DummyEvent(topic=test_topic, message="Second")
+        event3 = AnotherDummyEvent(topic=test_topic, value=42)
 
         # Publish events
         await publisher.publish(test_topic, event1)
         await publisher.publish(test_topic, event2)
         await publisher.publish(test_topic, event3)
-        await publisher.publish(test_topic, CompletedEvent())
+        await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
 
         # Consume events
         consumed_events = []
@@ -79,12 +79,14 @@ class TestInMemoryConsumer:
         test_topic: str,
     ) -> None:
         """Test that consumption stops when CompletedEvent is received."""
-        event = DummyEvent(message="Before completion")
+        event = DummyEvent(topic=test_topic, message="Before completion")
 
         await publisher.publish(test_topic, event)
-        await publisher.publish(test_topic, CompletedEvent())
+        await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
         # This event should not be consumed
-        await publisher.publish(test_topic, DummyEvent(message="After completion"))
+        await publisher.publish(
+            test_topic, DummyEvent(topic=test_topic, message="After completion")
+        )
 
         consumed_events = []
         async for consumed_event in consumer.consume(test_topic):
@@ -106,9 +108,11 @@ class TestInMemoryConsumer:
         async def publish_events() -> None:
             await asyncio.sleep(0.1)
             for i in range(5):
-                await publisher.publish(test_topic, DummyEvent(message=f"Event {i}"))
+                await publisher.publish(
+                    test_topic, DummyEvent(topic=test_topic, message=f"Event {i}")
+                )
                 await asyncio.sleep(0.05)
-            await publisher.publish(test_topic, CompletedEvent())
+            await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
 
         async def consume_events() -> list[EventBase]:
             events = []
@@ -138,9 +142,9 @@ class TestInMemoryConsumer:
         consumer1 = InMemoryConsumer(broker)
 
         # Publish events
-        await publisher.publish(test_topic, DummyEvent(message="Event 1"))
-        await publisher.publish(test_topic, DummyEvent(message="Event 2"))
-        await publisher.publish(test_topic, CompletedEvent())
+        await publisher.publish(test_topic, DummyEvent(topic=test_topic, message="Event 1"))
+        await publisher.publish(test_topic, DummyEvent(topic=test_topic, message="Event 2"))
+        await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
 
         # First consumer consumes all events
         consumed_events1 = []
@@ -163,8 +167,10 @@ class TestInMemoryConsumer:
 
         async def delayed_publish() -> None:
             await asyncio.sleep(0.2)
-            await publisher.publish(test_topic, DummyEvent(message="Delayed event"))
-            await publisher.publish(test_topic, CompletedEvent())
+            await publisher.publish(
+                test_topic, DummyEvent(topic=test_topic, message="Delayed event")
+            )
+            await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
 
         async def consume_with_timeout() -> list[EventBase]:
             events = []

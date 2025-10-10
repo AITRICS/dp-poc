@@ -224,17 +224,26 @@ class TestConsumerPattern:
         async def publish_events() -> None:
             await asyncio.sleep(0.05)
             # Publish to multiple topics
-            await publisher.publish("data.pipeline", DummyEvent(message="Pipeline 1"))
-            await publisher.publish("data.pipeline", DummyEvent(message="Pipeline 2"))
-            await publisher.publish("data.warehouse", DummyEvent(message="Warehouse 1"))
             await publisher.publish(
-                "data.pipeline.ingestion", DummyEvent(message="Should not match")
+                "data.pipeline", DummyEvent(topic="data.pipeline", message="Pipeline 1")
+            )
+            await publisher.publish(
+                "data.pipeline", DummyEvent(topic="data.pipeline", message="Pipeline 2")
+            )
+            await publisher.publish(
+                "data.warehouse", DummyEvent(topic="data.warehouse", message="Warehouse 1")
+            )
+            await publisher.publish(
+                "data.pipeline.ingestion",
+                DummyEvent(topic="data.pipeline.ingestion", message="Should not match"),
             )
 
             # Send CompletedEvent to all matching topics
-            await publisher.publish("data.pipeline", CompletedEvent())
-            await publisher.publish("data.warehouse", CompletedEvent())
-            await publisher.publish("data.pipeline.ingestion", CompletedEvent())
+            await publisher.publish("data.pipeline", CompletedEvent(topic="data.pipeline"))
+            await publisher.publish("data.warehouse", CompletedEvent(topic="data.warehouse"))
+            await publisher.publish(
+                "data.pipeline.ingestion", CompletedEvent(topic="data.pipeline.ingestion")
+            )
 
         async def consume_events() -> list[EventBase]:
             events = []
@@ -275,16 +284,27 @@ class TestConsumerPattern:
         async def publish_events() -> None:
             await asyncio.sleep(0.05)
             # Publish to multiple topics
-            await publisher.publish("data.pipeline", DummyEvent(message="Pipeline"))
-            await publisher.publish("data.pipeline.ingestion", DummyEvent(message="Ingestion"))
-            await publisher.publish("data.warehouse", DummyEvent(message="Warehouse"))
-            await publisher.publish("analytics.report", DummyEvent(message="Analytics"))
+            await publisher.publish(
+                "data.pipeline", DummyEvent(topic="data.pipeline", message="Pipeline")
+            )
+            await publisher.publish(
+                "data.pipeline.ingestion",
+                DummyEvent(topic="data.pipeline.ingestion", message="Ingestion"),
+            )
+            await publisher.publish(
+                "data.warehouse", DummyEvent(topic="data.warehouse", message="Warehouse")
+            )
+            await publisher.publish(
+                "analytics.report", DummyEvent(topic="analytics.report", message="Analytics")
+            )
 
             # Send CompletedEvent to all topics
-            await publisher.publish("data.pipeline", CompletedEvent())
-            await publisher.publish("data.pipeline.ingestion", CompletedEvent())
-            await publisher.publish("data.warehouse", CompletedEvent())
-            await publisher.publish("analytics.report", CompletedEvent())
+            await publisher.publish("data.pipeline", CompletedEvent(topic="data.pipeline"))
+            await publisher.publish(
+                "data.pipeline.ingestion", CompletedEvent(topic="data.pipeline.ingestion")
+            )
+            await publisher.publish("data.warehouse", CompletedEvent(topic="data.warehouse"))
+            await publisher.publish("analytics.report", CompletedEvent(topic="analytics.report"))
 
         async def consume_events() -> list[EventBase]:
             events = []
@@ -323,23 +343,31 @@ class TestConsumerPattern:
         async def publish_events() -> None:
             await asyncio.sleep(0.05)
             # Publish different event types
-            await publisher.publish("data.pipeline", DummyEvent(message="Message 1"))
-            await publisher.publish("data.warehouse", AnotherDummyEvent(value=100))
-            await publisher.publish("data.pipeline", DummyEvent(message="Message 2"))
-            await publisher.publish("data.warehouse", AnotherDummyEvent(value=200))
+            await publisher.publish(
+                "data.pipeline", DummyEvent(topic="data.pipeline", message="Message 1")
+            )
+            await publisher.publish(
+                "data.warehouse", AnotherDummyEvent(topic="data.warehouse", value=100)
+            )
+            await publisher.publish(
+                "data.pipeline", DummyEvent(topic="data.pipeline", message="Message 2")
+            )
+            await publisher.publish(
+                "data.warehouse", AnotherDummyEvent(topic="data.warehouse", value=200)
+            )
 
             # Send CompletedEvent
-            await publisher.publish("data.pipeline", CompletedEvent())
-            await publisher.publish("data.warehouse", CompletedEvent())
+            await publisher.publish("data.pipeline", CompletedEvent(topic="data.pipeline"))
+            await publisher.publish("data.warehouse", CompletedEvent(topic="data.warehouse"))
 
         async def consume_events() -> tuple[list[DummyEvent], list[AnotherDummyEvent]]:
             dummy_events = []
             another_events = []
             async for event in consumer.consume_pattern("data.*"):
-                if isinstance(event, DummyEvent):
-                    dummy_events.append(event)
-                elif isinstance(event, AnotherDummyEvent):
+                if isinstance(event, AnotherDummyEvent):
                     another_events.append(event)
+                elif isinstance(event, DummyEvent):
+                    dummy_events.append(event)
             return dummy_events, another_events
 
         # Start tasks
