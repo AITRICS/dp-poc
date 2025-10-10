@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import polars as pl
+import uuid6
 from pydantic import BaseModel, Field
 
 
@@ -17,7 +18,7 @@ class EventMeta(BaseModel):
         description="The topic of the event",
         examples=["data_pipeline_events"],
     )
-    event_id: uuid.UUID = Field(description="The unique event ID", default_factory=uuid.uuid4)
+    event_id: uuid.UUID = Field(description="The unique event ID", default_factory=uuid6.uuid7)
     timestamp: datetime = Field(
         description="The timestamp of the event",
         default_factory=lambda: datetime.now(UTC),
