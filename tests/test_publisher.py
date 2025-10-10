@@ -106,5 +106,5 @@ class TestInMemoryPublisher:
         queue = await broker.get_queue(test_topic)
         received_event = await queue.get()
 
-        assert received_event.event_id is not None
-        assert received_event.timestamp is not None
+        assert received_event.meta.event_id is not None
+        assert received_event.meta.timestamp is not None

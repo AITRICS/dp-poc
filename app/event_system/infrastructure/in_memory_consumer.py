@@ -28,7 +28,9 @@ class InMemoryConsumer(ConsumerPort[E], Generic[E]):
 
         while True:
             event = await queue.get()
-            logging.info(f"Consumed from {topic}: {event.__class__.__name__}(id={event.event_id})")
+            logging.info(
+                f"Consumed from {topic}: {event.__class__.__name__}(id={event.meta.event_id})"
+            )
 
             # When CompletedEvent is received, end the stream
             if isinstance(event, CompletedEvent):

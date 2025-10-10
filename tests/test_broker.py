@@ -58,8 +58,8 @@ class TestInMemoryBroker:
 
         queue1 = await broker.get_queue(topic1)
         queue2 = await broker.get_queue(topic2)
-        event1 = DummyEvent(topic=topic1, message="item1")
-        event2 = DummyEvent(topic=topic2, message="item2")
+        event1 = DummyEvent(message="item1")
+        event2 = DummyEvent(message="item2")
         # Add some items to the queues
         await queue1.put(event1)
         await queue2.put(event2)

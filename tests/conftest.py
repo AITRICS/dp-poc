@@ -12,7 +12,6 @@ class DummyEvent(EventBase):
     """Test event for testing purposes."""
 
     message: str
-    pass
 
 
 class AnotherDummyEvent(EventBase):
