@@ -23,6 +23,7 @@ class InMemoryQueue(QueuePort[E], Generic[E]):
             maxsize: Maximum size of the queue. 0 means unlimited.
         """
         self._queue: asyncio.Queue[E] = asyncio.Queue(maxsize=maxsize)
+        self._maxsize = maxsize
 
     async def put(self, item: E) -> None:
         """
@@ -31,6 +32,14 @@ class InMemoryQueue(QueuePort[E], Generic[E]):
         Args:
             item: The event to put into the queue.
         """
+        # if self._queue.full():
+        #     queue_size = self._queue.qsize()
+        #     if queue_size >= self._maxsize:
+        #         self._maxsize = 2 * self._maxsize
+        #         queue = self._queue
+        #         self._queue = asyncio.Queue(maxsize=self._maxsize)
+        #         for _ in range(queue_size):
+        #             self._queue.put_nowait(queue.get_nowait())
         await self._queue.put(item)
 
     async def get(self) -> E:
