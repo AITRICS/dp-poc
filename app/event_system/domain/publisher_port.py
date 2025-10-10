@@ -16,3 +16,18 @@ class PublisherPort(ABC, Generic[E]):
     async def publish(self, topic: str, event: E) -> None:
         """Publishes an event to the specified topic."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def publish_pattern(self, topic_pattern: str, event: E) -> None:
+        """
+        Publishes an event to all topics matching the pattern.
+
+        Supports wildcards:
+        - * matches any single level (e.g., data.* matches data.pipeline)
+        - ** matches multiple levels (e.g., data.** matches data.pipeline.ingestion)
+
+        Args:
+            topic_pattern: Topic pattern with wildcards.
+            event: Event to publish.
+        """
+        raise NotImplementedError

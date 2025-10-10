@@ -53,6 +53,23 @@ async def consume_events(consumer: InMemoryConsumer[EventBase], topic: str) -> N
     print("Event consumption completed.")
 
 
+async def consume_pattern_events(consumer: InMemoryConsumer[EventBase], topic_pattern: str) -> None:
+    """
+    패턴으로 이벤트를 소비하는 비동기 함수
+    """
+    print(f"\nStarting pattern consumption for: {topic_pattern}")
+    event_count = 0
+    async for event in consumer.consume_pattern(topic_pattern):
+        event_count += 1
+        print(f"[Pattern {topic_pattern}] Event #{event_count}: {event.__class__.__name__}")
+        if isinstance(event, PipelineStarted):
+            print(f"  Pipeline '{event.pipeline_name}' has started!")
+        elif isinstance(event, DataIngestionComplete):
+            print(f"  Ingested {event.rows_ingested} rows from {event.source_name}")
+
+    print(f"Pattern consumption completed. Total events: {event_count}")
+
+
 async def main() -> None:
     """
     Demonstrates the highly decoupled event system where ports and adapters
@@ -85,19 +102,118 @@ async def main() -> None:
     await consumer_task
 
 
+async def main_with_pattern() -> None:
+    """
+    Demonstrates the wildcard pattern matching feature for topic subscriptions.
+    Shows how to publish and consume events using topic patterns.
+    """
+    print("\n" + "=" * 80)
+    print("WILDCARD PATTERN MATCHING DEMO")
+    print("=" * 80)
+
+    # Setup
+    broker: InMemoryBroker[EventBase] = InMemoryBroker()
+    publisher: InMemoryPublisher[EventBase] = InMemoryPublisher(broker)
+    consumer: InMemoryConsumer[EventBase] = InMemoryConsumer(broker)
+
+    # Create multiple topics with hierarchical structure
+    topics = [
+        "data.pipeline.ingestion",
+        "data.pipeline.transformation",
+        "data.warehouse.load",
+        "analytics.report.daily",
+    ]
+
+    # Declare topics (idempotent operation - safe to call multiple times)
+    print("\n1. Declaring topics...")
+    for topic in topics:
+        await broker.declare_topic(topic)
+    print(f"   Declared {len(topics)} topics: {topics}")
+
+    # Start another pattern consumer for all data.** topics
+    print("2. Starting pattern consumer for 'data.**'")
+    data_all_consumer_task = asyncio.create_task(consume_pattern_events(consumer, "data.**"))
+
+    await asyncio.sleep(0.1)
+
+    # Publish events to different topics
+    print("\n3. Publishing events to various topics...")
+    await publisher.publish(
+        "data.pipeline.ingestion",
+        PipelineStarted(topic="data.pipeline.ingestion", pipeline_name="ingestion_job"),
+    )
+    await publisher.publish(
+        "data.pipeline.transformation",
+        DataIngestionComplete(
+            topic="data.pipeline.transformation",
+            source_name="raw_data",
+            rows_ingested=5000,
+        ),
+    )
+    await publisher.publish(
+        "data.warehouse.load",
+        PipelineStarted(topic="data.warehouse.load", pipeline_name="warehouse_load"),
+    )
+    await publisher.publish(
+        "analytics.report.daily",
+        DataIngestionComplete(
+            topic="analytics.report.daily",
+            source_name="aggregated_data",
+            rows_ingested=100,
+        ),
+    )
+
+    # Test pattern publishing: publish to all data.pipeline.* topics at once
+    print("\n4. Publishing to pattern 'data.pipeline.*'...")
+    await publisher.publish_pattern(
+        "data.pipeline.*",
+        PipelineStarted(topic="data.pipeline.*", pipeline_name="batch_pipeline"),
+    )
+
+    # Send CompletedEvent to all topics
+    print("\n5. Sending CompletedEvent to all topics...")
+    for topic in topics:
+        await publisher.publish(topic, CompletedEvent(topic=topic))
+
+    # Wait for consumers to finish
+    # await pattern_consumer_task
+    await data_all_consumer_task
+
+    print("\n" + "=" * 80)
+    print("DEMO COMPLETED")
+    print("=" * 80)
+
+
 if __name__ == "__main__":
+    import sys
+
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
-    logging.info("Running final decoupled event system simulation...")
-    try:
-        asyncio.run(main())
-    except ImportError as e:
-        logging.error(f"[Execution Error] {e}")
-        logging.error("Please run this script from the project's root directory using the command:")
-        logging.error("python -m app.main")
+    # Check if pattern demo is requested
+    if len(sys.argv) > 1 and sys.argv[1] == "--pattern":
+        print("Running wildcard pattern matching demo...")
+        try:
+            asyncio.run(main_with_pattern())
+        except ImportError as e:
+            logging.error(f"[Execution Error] {e}")
+            logging.error(
+                "Please run this script from the project's root directory using the command:"
+            )
+            logging.error("python -m app.main --pattern")
+    else:
+        logging.info("Running standard event system simulation...")
+        logging.info("(Use --pattern flag to run wildcard pattern demo)")
+        try:
+            asyncio.run(main())
+        except ImportError as e:
+            logging.error(f"[Execution Error] {e}")
+            logging.error(
+                "Please run this script from the project's root directory using the command:"
+            )
+            logging.error("python -m app.main")
 
-    logging.info("Simulation finished.")
+        logging.info("Simulation finished.")

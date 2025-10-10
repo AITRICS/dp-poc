@@ -17,3 +17,20 @@ class ConsumerPort(ABC, Generic[E]):
     def consume(self, topic: str) -> AsyncGenerator[E, None]:
         """Consumes events from the specified topic as an async generator."""
         raise NotImplementedError
+
+    @abstractmethod
+    def consume_pattern(self, topic_pattern: str) -> AsyncGenerator[E, None]:
+        """
+        Consumes events from all topics matching the pattern as an async generator.
+
+        Supports wildcards:
+        - * matches any single level (e.g., data.* matches data.pipeline)
+        - ** matches multiple levels (e.g., data.** matches data.pipeline.ingestion)
+
+        Args:
+            topic_pattern: Topic pattern with wildcards.
+
+        Yields:
+            Events from all matching topics.
+        """
+        raise NotImplementedError
