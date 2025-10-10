@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import polars as pl
 from pydantic import BaseModel, Field
@@ -23,16 +24,28 @@ class EventMeta(BaseModel):
     )
 
 
-class EventBase(BaseModel):
+class EventBase:
     """
     The abstract base class for all events in the system.
     Contains metadata and optional content (DataFrame).
     """
 
-    model_config = {"arbitrary_types_allowed": True}
+    meta: EventMeta
+    content: pl.DataFrame | None
 
-    meta: EventMeta = Field(default_factory=EventMeta, description="Event metadata")
-    content: pl.DataFrame | None = Field(default=None, description="Event data content")
+    def __init__(self, topic: str = "", **kwargs: Any) -> None:
+        """
+        Initialize an event with topic and optional content.
+
+        Args:
+            topic: The topic name for this event.
+            **kwargs: Additional data to be stored in the content DataFrame.
+        """
+        self.meta = EventMeta(topic=topic)
+        if kwargs:
+            self.content = pl.DataFrame(kwargs)
+        else:
+            self.content = None
 
 
 class CompletedEvent(EventBase):
@@ -40,4 +53,12 @@ class CompletedEvent(EventBase):
     Signal event to indicate the completion of an event stream.
     """
 
-    pass
+    def __init__(self, topic: str = "", **kwargs: Any) -> None:
+        """
+        Initialize a CompletedEvent.
+
+        Args:
+            topic: The topic name for this event.
+            **kwargs: Additional data (usually empty for CompletedEvent).
+        """
+        super().__init__(topic=topic, **kwargs)

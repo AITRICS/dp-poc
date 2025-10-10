@@ -1,5 +1,7 @@
 """Pytest configuration and shared fixtures."""
 
+from typing import Any
+
 import pytest
 
 from app.event_system.domain.events import EventBase
@@ -13,11 +15,19 @@ class DummyEvent(EventBase):
 
     message: str
 
+    def __init__(self, topic: str = "", message: str = "", **kwargs: Any) -> None:
+        super().__init__(topic=topic, message=message, **kwargs)
+        self.message = message
+
 
 class AnotherDummyEvent(EventBase):
     """Another test event for testing purposes."""
 
     value: int
+
+    def __init__(self, topic: str = "", value: int = 0, **kwargs: Any) -> None:
+        super().__init__(topic=topic, value=value, **kwargs)
+        self.value = value
 
 
 @pytest.fixture

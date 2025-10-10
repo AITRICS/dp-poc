@@ -29,7 +29,7 @@ class DummyEventSystemIntegration:
             await publisher.publish(test_topic, DummyEvent(message="Event 1"))
             await publisher.publish(test_topic, DummyEvent(message="Event 2"))
             await publisher.publish(test_topic, AnotherDummyEvent(value=100))
-            await publisher.publish(test_topic, CompletedEvent())
+            await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
 
         async def consume_events() -> list[EventBase]:
             events = []
@@ -70,12 +70,12 @@ class DummyEventSystemIntegration:
         async def publish_to_topic1() -> None:
             await asyncio.sleep(0.05)
             await publisher.publish(topic1, DummyEvent(message="Topic 1 Event"))
-            await publisher.publish(topic1, CompletedEvent())
+            await publisher.publish(topic1, CompletedEvent(topic=topic1))
 
         async def publish_to_topic2() -> None:
             await asyncio.sleep(0.05)
             await publisher.publish(topic2, AnotherDummyEvent(value=42))
-            await publisher.publish(topic2, CompletedEvent())
+            await publisher.publish(topic2, CompletedEvent(topic=topic2))
 
         async def consume_topic1() -> list[EventBase]:
             events = []
@@ -130,13 +130,13 @@ class DummyEventSystemIntegration:
                     new_event = AnotherDummyEvent(value=len(event.message))
                     await publisher2.publish(topic2, new_event)
             # Signal completion on output topic
-            await publisher2.publish(topic2, CompletedEvent())
+            await publisher2.publish(topic2, CompletedEvent(topic=topic2))
 
         async def publish_input() -> None:
             await asyncio.sleep(0.05)
             await publisher1.publish(topic1, DummyEvent(message="Hello"))
             await publisher1.publish(topic1, DummyEvent(message="World!"))
-            await publisher1.publish(topic1, CompletedEvent())
+            await publisher1.publish(topic1, CompletedEvent(topic=topic1))
 
         async def consume_output() -> list[EventBase]:
             events = []
@@ -169,7 +169,7 @@ class DummyEventSystemIntegration:
         async def publish_many_events() -> None:
             for i in range(num_events):
                 await publisher.publish(test_topic, DummyEvent(message=f"Event {i}"))
-            await publisher.publish(test_topic, CompletedEvent())
+            await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
 
         async def consume_all_events() -> list[EventBase]:
             events = []
@@ -201,7 +201,7 @@ class DummyEventSystemIntegration:
         async def publish_events() -> None:
             await asyncio.sleep(0.05)
             await publisher.publish(test_topic, DummyEvent(message="Valid event"))
-            await publisher.publish(test_topic, CompletedEvent())
+            await publisher.publish(test_topic, CompletedEvent(topic=test_topic))
 
         async def consume_with_error_handling() -> tuple[list[EventBase], list[Exception]]:
             events = []

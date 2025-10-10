@@ -1,20 +1,40 @@
 import asyncio
 import logging
+from dataclasses import dataclass
+from typing import Any
 
-from app.event_system.domain.events import CompletedEvent, EventBase, EventMeta
+from app.event_system.domain.events import CompletedEvent, EventBase
 from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
 from app.event_system.infrastructure.in_memory_consumer import InMemoryConsumer
 from app.event_system.infrastructure.in_memory_publisher import InMemoryPublisher
 
 
 # 1. Define concrete events based on EventBase
+@dataclass
 class PipelineStarted(EventBase):
     pipeline_name: str
+
+    def __init__(self, topic: str = "", pipeline_name: str = "", **kwargs: Any) -> None:
+        super().__init__(topic=topic, pipeline_name=pipeline_name, **kwargs)
+        self.pipeline_name = pipeline_name
 
 
 class DataIngestionComplete(EventBase):
     source_name: str
     rows_ingested: int
+
+    def __init__(
+        self,
+        topic: str = "",
+        source_name: str = "",
+        rows_ingested: int = 0,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            topic=topic, source_name=source_name, rows_ingested=rows_ingested, **kwargs
+        )
+        self.source_name = source_name
+        self.rows_ingested = rows_ingested
 
 
 async def consume_events(consumer: InMemoryConsumer[EventBase], topic: str) -> None:
@@ -52,21 +72,14 @@ async def main() -> None:
     await asyncio.sleep(0.1)
 
     # 4. Publish concrete event objects
+    await publisher.publish(topic, PipelineStarted(topic=topic, pipeline_name="daily_sales_report"))
     await publisher.publish(
         topic,
-        PipelineStarted(pipeline_name="daily_sales_report", meta=EventMeta(topic=topic)),
-    )
-    await publisher.publish(
-        topic,
-        DataIngestionComplete(
-            source_name="pos_terminal_1",
-            rows_ingested=1500,
-            meta=EventMeta(topic=topic),
-        ),
+        DataIngestionComplete(topic=topic, source_name="pos_terminal_1", rows_ingested=1500),
     )
 
     # 5. Send CompletedEvent to signal the end of the stream
-    await publisher.publish(topic, CompletedEvent(meta=EventMeta(topic=topic)))
+    await publisher.publish(topic, CompletedEvent(topic=topic))
 
     # 6. Wait for the consumer to finish processing
     await consumer_task
