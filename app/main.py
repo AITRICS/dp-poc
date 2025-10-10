@@ -45,9 +45,9 @@ async def main() -> None:
 
     topic = "data_pipeline_events"
 
-    # 3. Start the consumer in the background
-    logging.info("Starting consumer task...")
-    consumer_task = asyncio.create_task(consumer.consume(topic))  # type: ignore
+    # 3. Start consuming events in the background
+    consumer_task = asyncio.create_task(consume_events(consumer, topic))
+
     # Give the consumer a moment to start up
     await asyncio.sleep(0.1)
 
@@ -59,7 +59,9 @@ async def main() -> None:
     await publisher.publish(
         topic,
         DataIngestionComplete(
-            source_name="pos_terminal_1", rows_ingested=1500, meta=EventMeta(topic=topic)
+            source_name="pos_terminal_1",
+            rows_ingested=1500,
+            meta=EventMeta(topic=topic),
         ),
     )
 
@@ -68,13 +70,6 @@ async def main() -> None:
 
     # 6. Wait for the consumer to finish processing
     await consumer_task
-
-    # 6. Gracefully shut down the consumer
-    consumer_task.cancel()
-    try:
-        await consumer_task
-    except asyncio.CancelledError:
-        logging.info("Consumer task has been successfully cancelled.")
 
 
 if __name__ == "__main__":
