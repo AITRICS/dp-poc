@@ -24,7 +24,7 @@ class TestInMemoryPublisher:
         test_topic: str,
     ) -> None:
         """Test that publish adds an event to the broker's queue."""
-        event = DummyEvent(message="Hello, World!")
+        event = DummyEvent(topic=test_topic, message="Hello, World!")
         await publisher.publish(test_topic, event)
 
         queue = await broker.get_queue(test_topic)
@@ -41,9 +41,9 @@ class TestInMemoryPublisher:
         test_topic: str,
     ) -> None:
         """Test that multiple events can be published."""
-        event1 = DummyEvent(message="First")
-        event2 = DummyEvent(message="Second")
-        event3 = DummyEvent(message="Third")
+        event1 = DummyEvent(topic=test_topic, message="First")
+        event2 = DummyEvent(topic=test_topic, message="Second")
+        event3 = DummyEvent(topic=test_topic, message="Third")
 
         await publisher.publish(test_topic, event1)
         await publisher.publish(test_topic, event2)
@@ -73,8 +73,8 @@ class TestInMemoryPublisher:
         topic1 = "topic1"
         topic2 = "topic2"
 
-        event1 = DummyEvent(message="Topic 1 message")
-        event2 = DummyEvent(message="Topic 2 message")
+        event1 = DummyEvent(topic=topic1, message="Topic 1 message")
+        event2 = DummyEvent(topic=topic2, message="Topic 2 message")
 
         await publisher.publish(topic1, event1)
         await publisher.publish(topic2, event2)
@@ -100,7 +100,7 @@ class TestInMemoryPublisher:
         test_topic: str,
     ) -> None:
         """Test that published events have event_id and timestamp."""
-        event = DummyEvent(message="Test")
+        event = DummyEvent(topic=test_topic, message="Test")
         await publisher.publish(test_topic, event)
 
         queue = await broker.get_queue(test_topic)
