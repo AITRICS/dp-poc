@@ -189,31 +189,30 @@ if __name__ == "__main__":
 
     # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARNING,  # Set to WARNING for benchmark to reduce noise
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
-    # Check if pattern demo is requested
-    if len(sys.argv) > 1 and sys.argv[1] == "--pattern":
-        print("Running wildcard pattern matching demo...")
-        try:
-            asyncio.run(main_with_pattern())
-        except ImportError as e:
-            logging.error(f"[Execution Error] {e}")
-            logging.error(
-                "Please run this script from the project's root directory using the command:"
-            )
-            logging.error("python -m app.main --pattern")
+    # Check command line arguments
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--pattern":
+            logging.basicConfig(level=logging.INFO, force=True)
+            print("Running wildcard pattern matching demo...")
+            try:
+                asyncio.run(main_with_pattern())
+            except ImportError as e:
+                logging.error(f"[Execution Error] {e}")
+                logging.error("Please run this script from the project's root directory using:")
+                logging.error("python -m app.main --pattern")
     else:
+        logging.basicConfig(level=logging.INFO, force=True)
         logging.info("Running standard event system simulation...")
-        logging.info("(Use --pattern flag to run wildcard pattern demo)")
+        logging.info("(Use --pattern flag for wildcard demo, --benchmark for performance test)")
         try:
             asyncio.run(main())
         except ImportError as e:
             logging.error(f"[Execution Error] {e}")
-            logging.error(
-                "Please run this script from the project's root directory using the command:"
-            )
+            logging.error("Please run this script from the project's root directory using:")
             logging.error("python -m app.main")
 
         logging.info("Simulation finished.")

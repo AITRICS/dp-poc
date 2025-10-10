@@ -25,6 +25,12 @@ class EventMeta(BaseModel):
         default_factory=lambda: datetime.now(UTC),
     )
 
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(id={self.event_id}, topic={self.topic})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 @dataclass
 class EventBase:
@@ -49,6 +55,12 @@ class EventBase:
             self.content = pl.DataFrame(kwargs)
         else:
             self.content = None
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(id={self.meta.event_id}, topic={self.meta.topic})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class CompletedEvent(EventBase):
