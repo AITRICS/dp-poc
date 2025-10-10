@@ -1,6 +1,6 @@
 import logging
-from typing import TypeVar, Generic
 from collections.abc import AsyncGenerator
+from typing import Generic, TypeVar
 
 from app.event_system.domain.consumer_port import ConsumerPort
 from app.event_system.domain.events import CompletedEvent, EventBase
@@ -28,9 +28,8 @@ class InMemoryConsumer(ConsumerPort[E], Generic[E]):
 
         while True:
             event = await queue.get()
-            logging.info(f"Consumed from {topic}: {event.__class__.__name__}(id={event.event_id}, content={event})")
-            queue.task_done()
-            
+            logging.info(f"Consumed from {topic}: {event.__class__.__name__}(id={event.event_id})")
+
             # When CompletedEvent is received, end the stream
             if isinstance(event, CompletedEvent):
                 logging.info("Completed event received, ending stream")
@@ -39,4 +38,5 @@ class InMemoryConsumer(ConsumerPort[E], Generic[E]):
 
             # 이벤트를 yield하여 스트림으로 처리
             yield event
+            # 소비자가 이벤트 처리를 완료했으므로 task_done 호출
             queue.task_done()

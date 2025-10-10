@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from dataclasses import dataclass
 
 from app.event_system.domain.events import CompletedEvent, EventBase
 from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
@@ -48,8 +47,7 @@ async def main() -> None:
 
     # 3. Start the consumer in the background
     logging.info("Starting consumer task...")
-    consumer_task = asyncio.create_task(consumer.consume(topic))
-
+    consumer_task = asyncio.create_task(consumer.consume(topic))  # type: ignore
     # Give the consumer a moment to start up
     await asyncio.sleep(0.1)
 
@@ -73,11 +71,12 @@ async def main() -> None:
     except asyncio.CancelledError:
         logging.info("Consumer task has been successfully cancelled.")
 
+
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
+        format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
     logging.info("Running final decoupled event system simulation...")

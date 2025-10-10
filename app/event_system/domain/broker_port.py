@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
+
+from app.event_system.domain.queue_port import QueuePort
 
 from .events import EventBase
 
@@ -13,7 +15,7 @@ class BrokerPort(ABC, Generic[E]):
     """
 
     @abstractmethod
-    async def get_queue(self, topic: str) -> Any:
+    async def get_queue(self, topic: str) -> QueuePort[E]:
         """Returns a queue object for the given topic."""
         raise NotImplementedError
 
@@ -23,6 +25,6 @@ class BrokerPort(ABC, Generic[E]):
         raise NotImplementedError
 
     @abstractmethod
-    async def create_queue(self, topic: str) -> Any:
-        """Creates a queue for the given topic."""
+    async def publish(self, topic: str, event: E) -> None:
+        """Publishes an event to the given topic."""
         raise NotImplementedError

@@ -5,7 +5,9 @@ import asyncio
 import pytest
 
 from app.event_system.domain.events import EventBase
+from app.event_system.domain.queue_port import QueuePort
 from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
+from app.event_system.infrastructure.in_memory_queue import InMemoryQueue
 from tests.conftest import DummyEvent
 
 
@@ -24,7 +26,8 @@ class TestInMemoryBroker:
         """Test that get_queue creates a new queue if it doesn't exist."""
         queue = await broker.get_queue(test_topic)
         assert queue is not None
-        assert isinstance(queue, asyncio.Queue)
+        assert isinstance(queue, QueuePort)
+        assert isinstance(queue, InMemoryQueue)
         assert test_topic in broker.queues
 
     async def test_get_queue_returns_existing_queue(
@@ -35,22 +38,18 @@ class TestInMemoryBroker:
         queue2 = await broker.get_queue(test_topic)
         assert queue1 is queue2
 
-    async def test_create_queue_creates_new_queue(
-        self, broker: InMemoryBroker[EventBase], test_topic: str
-    ) -> None:
-        """Test that create_queue creates a new queue."""
-        queue = await broker.create_queue(test_topic)
-        assert queue is not None
-        assert isinstance(queue, asyncio.Queue)
-        assert test_topic in broker.queues
+    async def test_queue_factory(self) -> None:
+        """Test that broker uses the provided queue factory."""
+        custom_queue_created = False
 
-    async def test_create_queue_raises_error_if_exists(
-        self, broker: InMemoryBroker[EventBase], test_topic: str
-    ) -> None:
-        """Test that create_queue raises error if queue already exists."""
-        await broker.get_queue(test_topic)
-        with pytest.raises(ValueError, match=f"Queue for topic {test_topic} already exists"):
-            await broker.create_queue(test_topic)
+        def custom_factory() -> QueuePort[EventBase]:
+            nonlocal custom_queue_created
+            custom_queue_created = True
+            return InMemoryQueue[EventBase]()
+
+        broker: InMemoryBroker[EventBase] = InMemoryBroker(queue_factory=custom_factory)
+        await broker.get_queue("test_topic")
+        assert custom_queue_created
 
     async def test_close_waits_for_all_queues(self, broker: InMemoryBroker[EventBase]) -> None:
         """Test that close waits for all queues to be processed."""
