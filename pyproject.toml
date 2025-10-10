@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "polars>=1.33.1",
     "pydantic>=2.11.9",
+    "uuid6>=2025.0.1",
 ]
 
 [tool.uv]
