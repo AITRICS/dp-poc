@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,6 +26,7 @@ class EventMeta(BaseModel):
     )
 
 
+@dataclass
 class EventBase:
     """
     The abstract base class for all events in the system.
@@ -54,12 +56,11 @@ class CompletedEvent(EventBase):
     Signal event to indicate the completion of an event stream.
     """
 
-    def __init__(self, topic: str = "", **kwargs: Any) -> None:
+    def __init__(self, topic: str = "") -> None:
         """
         Initialize a CompletedEvent.
 
         Args:
             topic: The topic name for this event.
-            **kwargs: Additional data (usually empty for CompletedEvent).
         """
-        super().__init__(topic=topic, **kwargs)
+        super().__init__(topic=topic)
