@@ -1,6 +1,7 @@
 """In-memory queue implementation using asyncio.Queue."""
 
 import asyncio
+from copy import deepcopy
 from typing import Generic, TypeVar
 
 from app.event_system.domain.events import EventBase
@@ -40,7 +41,7 @@ class InMemoryQueue(QueuePort[E], Generic[E]):
         #         self._queue = asyncio.Queue(maxsize=self._maxsize)
         #         for _ in range(queue_size):
         #             self._queue.put_nowait(queue.get_nowait())
-        await self._queue.put(item)
+        await self._queue.put(deepcopy(item))
 
     async def get(self) -> E:
         """
