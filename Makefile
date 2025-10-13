@@ -1,6 +1,6 @@
 # Makefile
 
-.PHONY: dev install lint format type-check pre-commit test run
+.PHONY: dev install lint format type-check pre-commit test run test-benchmark
 
 dev:
 	@if [ ! -d ".venv" ]; then \
@@ -50,6 +50,10 @@ test-unit:
 test-integration:
 	@echo "Running integration tests...";
 	@uv run pytest -v -m integration;
+
+test-benchmark:
+	@echo "Running benchmark tests...";
+	@uv run pytest -v -m benchmark;
 
 run:
 	@echo "Running main application...";

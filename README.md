@@ -203,7 +203,7 @@ pytest tests/scheduler/ -v
 pytest tests/task_registry/ -v
 
 # 벤치마크 테스트
-pytest tests/benchmark/ -v -m benchmark
+make test-benchmark
 ```
 
 ## 🛠️ 개발 도구
@@ -232,6 +232,7 @@ make test          # 모든 테스트 실행
 make test-cov      # 커버리지와 함께 테스트 실행
 make test-unit     # 유닛 테스트만 실행
 make test-integration  # 통합 테스트만 실행
+make test-benchmark    # 벤치마크 테스트만 실행
 
 # 실행
 make run           # 애플리케이션 실행
