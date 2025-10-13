@@ -10,12 +10,7 @@ This example demonstrates how to use the Task Registry system to:
 
 import asyncio
 
-from app.task_registry import (
-    ExcutableTask,
-    get_registry,
-    task,
-    validate_all_tasks,
-)
+from app.task_registry import get_registry, task, validate_all_tasks
 
 
 # Define tasks with dependencies
@@ -86,38 +81,28 @@ async def main() -> None:
     for task_meta in etl_tasks:
         print(f"   - {task_meta.name}")
 
-    # Execute tasks manually (in correct order)
-    print("\n4. Executing Tasks:")
-    print("\n   Step 1: Extract")
+    # Inspect task metadata
+    print("\n4. Task Metadata Details:")
     extract_task = registry.get("extract_data")
     if extract_task:
-        executor = ExcutableTask(extract_task)
-        extract_result = await executor.execute()
-        print(f"   Result: {extract_result}")
+        print(f"\n   Task: {extract_task.name}")
+        print(f"   - Function: {extract_task.func.__name__}")
+        print(f"   - Is Async: {extract_task.is_async}")
+        print(f"   - Input Schema: {extract_task.input_schema}")
+        print(f"   - Output Schema: {extract_task.output_schema}")
+        print(f"   - Dependencies: {extract_task.dependencies}")
 
-    print("\n   Step 2: Transform")
     transform_task = registry.get("transform_data")
     if transform_task:
-        executor = ExcutableTask(transform_task)
-        transform_result = await executor.execute(extract_result)
-        print(f"   Result: {transform_result}")
-
-    print("\n   Step 3: Load")
-    load_task = registry.get("load_data")
-    if load_task:
-        executor = ExcutableTask(load_task)
-        await executor.execute(transform_result)
-        print()
-
-    print("   Step 4: Generate Report (independent)")
-    report_task = registry.get("generate_report")
-    if report_task:
-        executor = ExcutableTask(report_task)
-        await executor.execute()
-        print()
+        print(f"\n   Task: {transform_task.name}")
+        print(f"   - Function: {transform_task.func.__name__}")
+        print(f"   - Is Async: {transform_task.is_async}")
+        print(f"   - Input Schema: {transform_task.input_schema}")
+        print(f"   - Output Schema: {transform_task.output_schema}")
+        print(f"   - Dependencies: {transform_task.dependencies}")
 
     # Display registry statistics
-    print("5. Registry Statistics:")
+    print("\n5. Registry Statistics:")
     stats = registry.get_stats()
     for key, value in stats.items():
         print(f"   {key}: {value}")

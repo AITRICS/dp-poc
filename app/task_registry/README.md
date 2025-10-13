@@ -76,19 +76,21 @@ else:
     print("✅ All dependencies are valid!")
 ```
 
-### 4. Task 실행
+### 4. Task 메타데이터 조회
 
 ```python
-from app.task_registry import ExcutableTask, get_registry
+from app.task_registry import get_registry
 
-# Task 가져오기
+# Task 메타데이터 가져오기
 registry = get_registry()
 task_metadata = registry.get("transform_data")
 
-# Executor 생성 및 실행
-executor = ExcutableTask(task_metadata)
-result = await executor.execute({"data": [1, 2, 3]})
-print(f"Result: {result}")  # [2, 4, 6]
+if task_metadata:
+    print(f"Task: {task_metadata.name}")
+    print(f"Is Async: {task_metadata.is_async}")
+    print(f"Dependencies: {task_metadata.dependencies}")
+    print(f"Input Schema: {task_metadata.input_schema}")
+    print(f"Output Schema: {task_metadata.output_schema}")
 ```
 
 ## Event System과 통합 (예정)
@@ -131,8 +133,7 @@ app/task_registry/
 │   └── registry_port.py    # Registry 인터페이스
 │
 ├── infrastructure/          # Infrastructure 레이어
-│   ├── task_registry.py    # Registry 구현
-│   └── excutable_task.py   # Task 실행
+│   └── task_registry.py    # Registry 구현
 │
 ├── utils/                   # Utilities
 │   └── schema_utils.py     # 스키마 추출 유틸리티

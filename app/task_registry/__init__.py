@@ -11,7 +11,7 @@ from app.task_registry.decorator import (
     validate_all_tasks,
 )
 from app.task_registry.domain import RegistryPort, TaskMetadata
-from app.task_registry.infrastructure import ExcutableTask, TaskRegistry
+from app.task_registry.infrastructure import TaskRegistry
 from app.task_registry.utils import extract_function_schema, is_async_function
 
 __all__ = [
@@ -25,7 +25,6 @@ __all__ = [
     "RegistryPort",
     # Infrastructure
     "TaskRegistry",
-    "ExcutableTask",
     # Utils
     "is_async_function",
     "extract_function_schema",

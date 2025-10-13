@@ -5,7 +5,6 @@ from collections.abc import Generator
 import pytest
 
 from app.task_registry import (
-    ExcutableTask,
     TaskMetadata,
     TaskRegistry,
     clear_registry,
@@ -291,63 +290,11 @@ class TestTaskDecorator:
 
 
 @pytest.mark.asyncio
-class TestExcutableTask:
-    """Test ExcutableTask."""
-
-    async def test_execute_sync_task(self) -> None:
-        """Test executing sync task."""
-
-        def add(a: int, b: int) -> int:
-            return a + b
-
-        metadata = TaskMetadata(name="add", func=add)
-        executor = ExcutableTask(metadata)
-
-        result = await executor.execute(5, 3)
-        assert result == 8
-
-    async def test_execute_async_task(self) -> None:
-        """Test executing async task."""
-
-        async def async_add(a: int, b: int) -> int:
-            return a + b
-
-        metadata = TaskMetadata(name="async_add", func=async_add, is_async=True)
-        executor = ExcutableTask(metadata)
-
-        result = await executor.execute(10, 20)
-        assert result == 30
-
-    async def test_executor_get_name(self) -> None:
-        """Test getting task name from executor."""
-
-        def my_func() -> None:
-            pass
-
-        metadata = TaskMetadata(name="test_task", func=my_func)
-        executor = ExcutableTask(metadata)
-
-        assert executor.get_name() == "test_task"
-
-    async def test_executor_get_dependencies(self) -> None:
-        """Test getting dependencies from executor."""
-
-        def my_func() -> None:
-            pass
-
-        metadata = TaskMetadata(name="test_task", func=my_func, dependencies=["dep1", "dep2"])
-        executor = ExcutableTask(metadata)
-
-        deps = executor.get_dependencies()
-        assert deps == ["dep1", "dep2"]
-
-
-@pytest.mark.asyncio
 class TestTaskIntegration:
     """Integration tests."""
 
     async def test_full_workflow(self) -> None:
-        """Test full workflow: register, validate, execute."""
+        """Test full workflow: register, validate."""
 
         @task(name="extract", tags=["etl"])
         def extract() -> dict[str, list[int]]:
@@ -365,22 +312,18 @@ class TestTaskIntegration:
         registry = get_registry()
 
         # Check tasks are registered
-        assert registry.get("extract") is not None
-        assert registry.get("transform") is not None
-
-        # Execute extract
         extract_task = registry.get("extract")
         assert extract_task is not None
-        extract_executor = ExcutableTask(extract_task)
-        extract_result = await extract_executor.execute()
-        assert extract_result == {"data": [1, 2, 3]}
+        assert extract_task.name == "extract"
+        assert extract_task.tags == ["etl"]
+        assert extract_task.dependencies == []
 
-        # Execute transform with extract result
         transform_task = registry.get("transform")
         assert transform_task is not None
-        transform_executor = ExcutableTask(transform_task)
-        transform_result = await transform_executor.execute(extract_result)
-        assert transform_result == [2, 4, 6]
+        assert transform_task.name == "transform"
+        assert transform_task.tags == ["etl"]
+        assert transform_task.dependencies == ["extract"]
+        assert transform_task.is_async is True
 
     async def test_missing_dependency_detected(self) -> None:
         """Test that missing dependencies are detected."""
