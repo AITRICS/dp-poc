@@ -120,7 +120,7 @@ class TestManualTrigger:
 class TestCronTrigger:
     """Test cases for CronTrigger."""
 
-    @pytest.mark.slow
+    # @pytest.mark.slow
     async def test_cron_trigger_basic(self) -> None:
         """Test basic cron trigger functionality."""
         event_count = 0
@@ -152,7 +152,7 @@ class TestCronTrigger:
         await trigger.stop()
         assert not trigger.is_running()
 
-    @pytest.mark.slow
+    # @pytest.mark
     async def test_cron_trigger_expression(self) -> None:
         """Test cron trigger with specific expression."""
         events_created = []

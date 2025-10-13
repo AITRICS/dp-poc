@@ -53,8 +53,9 @@ class CronTrigger(TriggerPort[E], Generic[E]):
         self._task: asyncio.Task[None] | None = None
 
         # Validate cron expression
+        # Support both 5-field and 6-field (with seconds) cron expressions
         try:
-            croniter(cron_expression)
+            croniter(cron_expression, second_at_beginning=True)
         except Exception as e:
             raise ValueError(f"Invalid cron expression '{cron_expression}': {e}") from e
 
@@ -106,7 +107,8 @@ class CronTrigger(TriggerPort[E], Generic[E]):
 
     async def _run_cron(self) -> None:
         """Internal coroutine that monitors cron schedule and emits events."""
-        cron = croniter(self.cron_expression, datetime.now())
+        # Support both 5-field and 6-field (with seconds) cron expressions
+        cron = croniter(self.cron_expression, datetime.now(), second_at_beginning=True)
 
         while self._running:
             # Get next scheduled time
