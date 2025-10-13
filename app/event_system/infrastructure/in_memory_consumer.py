@@ -4,11 +4,10 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Generic, TypeVar
 
+from app.event_system.domain.broker_port import BrokerPort
 from app.event_system.domain.consumer_port import ConsumerPort
 from app.event_system.domain.events import CompletedEvent, EventBase
 from app.event_system.utils.topic_matcher import get_matching_topics
-
-from .in_memory_broker import InMemoryBroker
 
 E = TypeVar("E", bound=EventBase)
 
@@ -19,7 +18,7 @@ class InMemoryConsumer(ConsumerPort[E], Generic[E]):
     It uses an InMemoryBroker to consume events as an async generator.
     """
 
-    def __init__(self, broker: InMemoryBroker[E]) -> None:
+    def __init__(self, broker: BrokerPort[E]) -> None:
         self.broker = broker
 
     async def consume(self, topic: str) -> AsyncGenerator[E, None]:
