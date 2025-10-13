@@ -18,6 +18,9 @@ from app.event_system.infrastructure.in_memory_consumer import InMemoryConsumer
 from app.event_system.infrastructure.in_memory_publisher import InMemoryPublisher
 from tests.conftest import AnotherDummyEvent, DummyEvent
 
+# Mark all tests in this module as benchmark tests
+pytestmark = pytest.mark.benchmark
+
 
 class TestEventSystemBenchmark:
     """Benchmark tests for event system performance."""
@@ -56,6 +59,7 @@ class TestEventSystemBenchmark:
             # Publish events
             for topic in topics:
                 for i in range(events_per_topic):
+                    event: DummyEvent | AnotherDummyEvent | None = None
                     if i % 2 == 0:
                         event = DummyEvent(topic=topic, message=f"msg_{i}")
                     else:
@@ -119,6 +123,7 @@ class TestEventSystemBenchmark:
             # Publish events
             for topic in topics:
                 for i in range(events_per_topic):
+                    event: DummyEvent | AnotherDummyEvent | None = None
                     if i % 2 == 0:
                         event = DummyEvent(topic=topic, message=f"msg_{i}")
                     else:
@@ -185,6 +190,7 @@ class TestEventSystemBenchmark:
             publish_tasks = []
             for topic_idx, topic in enumerate(topics):
                 for event_idx in range(events_per_topic):
+                    event: DummyEvent | AnotherDummyEvent | None = None
                     if event_idx % 2 == 0:
                         event = DummyEvent(topic=topic, message=f"msg_{event_idx}")
                     else:

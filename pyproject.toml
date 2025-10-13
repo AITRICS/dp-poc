@@ -3,6 +3,9 @@ name = "dp-poc"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "croniter>=6.0.0",
+    "dependency-injector>=4.48.2",
+    "pip>=25.2",
     "polars>=1.33.1",
     "pydantic>=2.11.9",
     "uuid6>=2025.0.1",
@@ -22,6 +25,10 @@ dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
+]
+api = [
+    "fastapi>=0.118.2",
+    "uvicorn>=0.37.0",
 ]
 
 [tool.mypy]
@@ -85,12 +92,13 @@ addopts = [
     "--strict-markers",
     "--cov=app",
     "--cov-report=term-missing",
-    "--cov-report=html",
+    "-m", "not slow and not benchmark"  # Skip slow and benchmark tests by default
 ]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "slow: Slow running tests",
+    "benchmark: Benchmark/performance tests",
 ]
 
 [tool.coverage.run]

@@ -20,7 +20,7 @@ class DummyEvent(EventBase):
         self.message = message
 
 
-class AnotherDummyEvent(DummyEvent):
+class AnotherDummyEvent(EventBase):
     """Another test event for testing purposes."""
 
     value: int
