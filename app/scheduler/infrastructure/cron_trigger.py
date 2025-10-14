@@ -10,7 +10,7 @@ from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
 from typing import Generic, TypeVar
 
-from croniter import croniter
+from croniter import croniter  # type: ignore[import-untyped]
 
 from app.event_system.domain.events import EventBase
 from app.scheduler.domain.trigger_port import TriggerPort

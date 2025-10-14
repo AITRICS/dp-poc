@@ -97,6 +97,7 @@ markers = [
     "integration: Integration tests",
     "slow: Slow running tests",
     "benchmark: Benchmark/performance tests",
+    "asyncio: Async tests",
 ]
 
 [tool.coverage.run]

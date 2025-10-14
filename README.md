@@ -4,11 +4,12 @@
 
 ## 🎯 주요 기능
 
-이 프로젝트는 3개의 핵심 시스템으로 구성되어 있습니다:
+이 프로젝트는 4개의 핵심 시스템으로 구성되어 있습니다:
 
 1. **Event System** 🔔 - 비동기 이벤트 메시징 시스템
 2. **Scheduler System** ⏰ - 다양한 트리거 기반 스케줄링 시스템
 3. **Task Registry** 📋 - Task 등록 및 메타데이터 관리 시스템
+4. **Planner** 🗺️ - DAG 기반 실행 계획 시스템
 
 ### Event System
 - 토픽 기반 pub/sub 패턴
@@ -27,6 +28,13 @@
 - 자동 스키마 추출 (타입 힌트 기반)
 - Task 간 의존성 관리
 - 태그 기반 분류 및 조회
+
+### Planner
+- DAG(Directed Acyclic Graph) 자동 생성
+- 순환 참조 감지 (Cycle Detection)
+- 위상 정렬 (Topological Sort)
+- 병렬 실행 레벨 계산
+- 의존성 검증
 
 ## 📦 프로젝트 구조
 
@@ -75,16 +83,27 @@ dp-poc/
 │   │   ├── decorator.py       # @task 데코레이터
 │   │   └── README.md
 │   │
+│   ├── planner/                # Planner 시스템
+│   │   ├── domain/            # 도메인 로직
+│   │   │   ├── node.py        # Node 모델
+│   │   │   ├── dag.py         # DAG 클래스
+│   │   │   ├── dag_builder.py # DAG 생성
+│   │   │   ├── execution_plan.py  # 실행 계획
+│   │   │   └── planner.py     # Planner 통합
+│   │   └── README.md
+│   │
 │   └── main.py                # 메인 진입점
 │
 ├── examples/                   # 예제 코드
 │   ├── schema_extraction_demo.py
-│   └── task_registry_example.py
+│   ├── task_registry_example.py
+│   └── planner_example.py
 │
 ├── tests/                      # 테스트
 │   ├── event_system/
 │   ├── scheduler/
 │   ├── task_registry/
+│   ├── planner/
 │   └── benchmark/
 │
 ├── pyproject.toml
@@ -122,6 +141,9 @@ python -m examples.task_registry_example
 
 # Schema 추출 데모
 python -m examples.schema_extraction_demo
+
+# Planner 예제
+python -m examples.planner_example
 ```
 
 ## 💡 사용 예제
@@ -188,6 +210,44 @@ task_info = registry.get("extract_data")
 print(f"Task: {task_info.name}, Async: {task_info.is_async}")
 ```
 
+### 4. Planner 사용하기
+
+```python
+from app.task_registry import task
+from app.planner import get_planner
+
+# Task 등록 (의존성 포함)
+@task(name="extract", tags=["etl"])
+def extract():
+    return {"data": [1, 2, 3]}
+
+@task(name="transform", tags=["etl"], dependencies=["extract"])
+def transform():
+    return [2, 4, 6]
+
+@task(name="load", tags=["etl"], dependencies=["transform"])
+def load():
+    pass
+
+# 실행 계획 생성
+planner = get_planner()
+plan = planner.create_execution_plan(tags=["etl"])
+
+print(f"Execution order: {plan.execution_order}")
+# Output: ['extract', 'transform', 'load']
+
+print(f"Parallel levels: {plan.parallel_levels}")
+# Output: [['extract'], ['transform'], ['load']]
+
+# 실행 시뮬레이션
+completed = set()
+for level_tasks in plan.parallel_levels:
+    # 이 레벨의 Task들은 병렬 실행 가능
+    for task_id in level_tasks:
+        print(f"Executing {task_id}...")
+    completed.update(level_tasks)
+```
+
 ## 🧪 테스트
 
 ```bash
@@ -245,6 +305,7 @@ make run           # 애플리케이션 실행
 - [Event System](app/event_system/) - 이벤트 메시징 시스템
 - [Scheduler System](app/scheduler/README.md) - 스케줄링 시스템
 - [Task Registry](app/task_registry/README.md) - Task 관리 시스템
+- [Planner](app/planner/README.md) - DAG 기반 실행 계획 시스템
 
 ## 🏗️ 아키텍처
 
@@ -323,7 +384,8 @@ await scheduler.start()
 ## 🔮 향후 계획
 
 - [ ] Redis/Kafka 어댑터 구현
-- [ ] Task DAG 실행 엔진
+- [x] ~~Task DAG 실행 계획~~ (Planner 완료)
+- [ ] Task DAG 실행 엔진 (Executor)
 - [ ] 분산 스케줄링 지원
 - [ ] 모니터링 및 메트릭
 - [ ] UI 대시보드
