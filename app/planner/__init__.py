@@ -10,6 +10,7 @@ from app.planner.domain.dag_builder import DAGBuilder
 from app.planner.domain.execution_plan import ExecutionPlan
 from app.planner.domain.node import Node
 from app.planner.domain.planner import Planner
+from app.planner.domain.schema_validator import SchemaValidator
 
 # Global planner instance (lazy initialization)
 _global_planner: Planner | None = None
@@ -54,6 +55,7 @@ __all__ = [
     "DAGBuilder",
     "ExecutionPlan",
     "Planner",
+    "SchemaValidator",
     "get_planner",
     "reset_planner",
 ]

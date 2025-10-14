@@ -7,6 +7,7 @@ import logging
 
 from app.planner.domain.dag_builder import DAGBuilder
 from app.planner.domain.execution_plan import ExecutionPlan
+from app.planner.domain.schema_validator import SchemaValidator
 from app.task_registry.domain.registry_port import RegistryPort
 
 
@@ -35,6 +36,8 @@ class Planner:
         root_tasks: list[str] | None = None,
         include_upstream: bool = False,
         dag_id: str | None = None,
+        validate_schemas: bool = False,
+        strict_schemas: bool = False,
     ) -> ExecutionPlan:
         """
         Create an execution plan.
@@ -52,6 +55,8 @@ class Planner:
             root_tasks: Start from specific root tasks and include their downstream.
             include_upstream: If True (with root_tasks), include upstream dependencies.
             dag_id: Optional DAG ID. If not provided, content hash will be used.
+            validate_schemas: If True, validate task schema compatibility.
+            strict_schemas: If True, require all tasks to have schemas.
 
         Returns:
             ExecutionPlan ready for execution.
@@ -66,15 +71,16 @@ class Planner:
             # Using root tasks
             plan = planner.create_execution_plan(root_tasks=["extract"])
 
-            # With explicit DAG ID
+            # With explicit DAG ID and schema validation
             plan = planner.create_execution_plan(
                 root_tasks=["extract"],
-                dag_id="daily_etl"
+                dag_id="daily_etl",
+                validate_schemas=True
             )
         """
         logging.info("Creating execution plan...")
 
-        # Build DAG (includes validation)
+        # Build DAG
         if root_tasks:
             dag = self.dag_builder.build_dag_from_roots(
                 root_tasks=root_tasks,
@@ -87,6 +93,17 @@ class Planner:
                 tags=tags,
                 dag_id=dag_id,
             )
+
+        # Validate structure
+        errors = dag.validate()
+        if errors:
+            raise ValueError("DAG validation failed:\n" + "\n".join(errors))
+
+        # Validate schemas
+        if validate_schemas:
+            schema_errors = SchemaValidator.validate_dag_schemas(dag, strict=strict_schemas)
+            if schema_errors:
+                raise ValueError("Schema validation failed:\n" + "\n".join(schema_errors))
 
         # Create execution plan
         plan = ExecutionPlan(dag=dag)

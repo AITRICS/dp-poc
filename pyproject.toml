@@ -70,6 +70,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # unused imports in __init__.py
+"tests/**/*.py" = ["N803"]  # Allow uppercase argument names in tests (task dependencies)
+"examples/**/*.py" = ["N803"]  # Allow uppercase argument names in examples (task dependencies)
 
 [tool.isort]
 profile = "black"
@@ -102,7 +104,14 @@ markers = [
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["*/tests/*", "*/__pycache__/*", "*/.venv/*"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/__init__.py",
+    "*/main.py",
+    "examples/example*.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [

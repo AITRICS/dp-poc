@@ -35,6 +35,10 @@
 - 위상 정렬 (Topological Sort)
 - 병렬 실행 레벨 계산
 - 의존성 검증
+- **Schema Validator**: Task 간 타입 호환성 검증
+  - Named Arguments (파라미터 이름 = task 이름)
+  - Advanced Type Checking (Generic, Union, Inheritance)
+  - Optional Parameters (기본값 있는 파라미터는 검증 제외)
 
 ## 📦 프로젝트 구조
 
@@ -89,6 +93,7 @@ dp-poc/
 │   │   │   ├── dag.py         # DAG 클래스
 │   │   │   ├── dag_builder.py # DAG 생성
 │   │   │   ├── execution_plan.py  # 실행 계획
+│   │   │   ├── schema_validator.py  # Schema 검증
 │   │   │   └── planner.py     # Planner 통합
 │   │   └── README.md
 │   │
@@ -97,7 +102,8 @@ dp-poc/
 ├── examples/                   # 예제 코드
 │   ├── schema_extraction_demo.py
 │   ├── task_registry_example.py
-│   └── planner_example.py
+│   ├── planner_example.py
+│   └── schema_validator_example.py
 │
 ├── tests/                      # 테스트
 │   ├── event_system/
