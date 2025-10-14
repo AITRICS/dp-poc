@@ -179,10 +179,10 @@ class DAG:
             node.level = 0
 
         # Get topological order
-        order = self.topological_sort()
+        orders = self.topological_sort()
 
         # Calculate levels based on upstream nodes
-        for node_id in order:
+        for node_id in orders:
             node = self._nodes[node_id]
             if node.upstream:
                 # Level is max(upstream levels) + 1
