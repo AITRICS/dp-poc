@@ -597,3 +597,237 @@ class TestIntegration:
             completed.update(level_tasks)
 
         assert len(completed) == 3
+
+
+class TestDAGID:
+    """Tests for DAG ID functionality."""
+
+    def test_dag_content_hash_generation(self) -> None:
+        """Test that DAG generates content hash automatically."""
+        registry = get_registry()
+
+        @task(name="A")
+        def task_a() -> str:
+            return "a"
+
+        @task(name="B", dependencies=["A"])
+        def task_b() -> str:
+            return "b"
+
+        builder = DAGBuilder(registry)
+        dag = builder.build_dag()
+
+        # Should have a dag_id (content hash)
+        assert dag.dag_id
+        assert len(dag.dag_id) == 16  # First 16 chars of SHA256
+
+    def test_dag_user_provided_id(self) -> None:
+        """Test that user-provided DAG ID is used."""
+        registry = get_registry()
+
+        @task(name="A")
+        def task_a() -> str:
+            return "a"
+
+        builder = DAGBuilder(registry)
+        dag = builder.build_dag(dag_id="my_custom_dag")
+
+        assert dag.dag_id == "my_custom_dag"
+
+    def test_same_structure_same_hash(self) -> None:
+        """Test that same DAG structure produces same content hash."""
+        registry = get_registry()
+
+        @task(name="A")
+        def task_a() -> str:
+            return "a"
+
+        @task(name="B", dependencies=["A"])
+        def task_b() -> str:
+            return "b"
+
+        builder = DAGBuilder(registry)
+        dag1 = builder.build_dag()
+        dag2 = builder.build_dag()
+
+        # Same structure → same content hash
+        assert dag1.get_content_hash() == dag2.get_content_hash()
+        assert dag1.is_same_structure(dag2)
+
+    def test_different_structure_different_hash(self) -> None:
+        """Test that different DAG structures produce different hashes."""
+        registry = get_registry()
+
+        @task(name="A")
+        def task_a() -> str:
+            return "a"
+
+        @task(name="B", dependencies=["A"])
+        def task_b() -> str:
+            return "b"
+
+        @task(name="C")
+        def task_c() -> str:
+            return "c"
+
+        builder = DAGBuilder(registry)
+        dag1 = builder.build_dag(task_names=["A", "B"])
+        dag2 = builder.build_dag(task_names=["C"])
+
+        # Different structure → different hash
+        assert dag1.get_content_hash() != dag2.get_content_hash()
+        assert not dag1.is_same_structure(dag2)
+
+
+class TestRootTasks:
+    """Tests for root_tasks functionality."""
+
+    def test_build_dag_from_single_root(self) -> None:
+        """Test building DAG from a single root task."""
+        registry = get_registry()
+
+        @task(name="A")
+        def task_a() -> str:
+            return "a"
+
+        @task(name="B", dependencies=["A"])
+        def task_b() -> str:
+            return "b"
+
+        @task(name="C")
+        def task_c() -> str:
+            return "c"
+
+        planner = Planner(registry)
+        plan = planner.create_execution_plan(root_tasks=["A"])
+
+        # Should only include A and B (A's downstream)
+        assert len(plan) == 2
+        assert "A" in plan.execution_order
+        assert "B" in plan.execution_order
+        assert "C" not in plan.execution_order
+
+    def test_build_dag_from_multiple_roots(self) -> None:
+        """Test building DAG from multiple root tasks."""
+        registry = get_registry()
+
+        @task(name="A")
+        def task_a() -> str:
+            return "a"
+
+        @task(name="B", dependencies=["A"])
+        def task_b() -> str:
+            return "b"
+
+        @task(name="C")
+        def task_c() -> str:
+            return "c"
+
+        @task(name="D", dependencies=["C"])
+        def task_d() -> str:
+            return "d"
+
+        planner = Planner(registry)
+        plan = planner.create_execution_plan(root_tasks=["A", "C"])
+
+        # Should include A, B, C, D
+        assert len(plan) == 4
+
+    def test_build_dag_with_include_upstream(self) -> None:
+        """Test building DAG with include_upstream."""
+        registry = get_registry()
+
+        @task(name="A")
+        def task_a() -> str:
+            return "a"
+
+        @task(name="B", dependencies=["A"])
+        def task_b() -> str:
+            return "b"
+
+        @task(name="C", dependencies=["B"])
+        def task_c() -> str:
+            return "c"
+
+        planner = Planner(registry)
+
+        # Start from C without upstream
+        plan1 = planner.create_execution_plan(root_tasks=["C"])
+        assert len(plan1) == 1  # Only C
+        assert "C" in plan1.execution_order
+
+        # Start from C with upstream
+        plan2 = planner.create_execution_plan(root_tasks=["C"], include_upstream=True)
+        assert len(plan2) == 3  # A, B, C
+        assert set(plan2.execution_order) == {"A", "B", "C"}
+
+    def test_independent_dags_from_same_registry(self) -> None:
+        """Test creating independent DAGs from the same registry."""
+        registry = get_registry()
+
+        @task(name="extract1")
+        def extract1() -> str:
+            return "data1"
+
+        @task(name="transform1", dependencies=["extract1"])
+        def transform1() -> str:
+            return "transformed1"
+
+        @task(name="extract2")
+        def extract2() -> str:
+            return "data2"
+
+        @task(name="transform2", dependencies=["extract2"])
+        def transform2() -> str:
+            return "transformed2"
+
+        planner = Planner(registry)
+
+        # Create two independent DAGs
+        plan1 = planner.create_execution_plan(root_tasks=["extract1"])
+        plan2 = planner.create_execution_plan(root_tasks=["extract2"])
+
+        # Should be different DAGs
+        assert len(plan1) == 2
+        assert len(plan2) == 2
+        assert set(plan1.execution_order) == {"extract1", "transform1"}
+        assert set(plan2.execution_order) == {"extract2", "transform2"}
+
+        # Different structures → different content hashes
+        assert plan1.dag.get_content_hash() != plan2.dag.get_content_hash()
+
+
+class TestPlannerWithDAGID:
+    """Tests for Planner with DAG ID."""
+
+    def test_planner_with_explicit_dag_id(self) -> None:
+        """Test planner with explicit DAG ID."""
+        registry = get_registry()
+
+        @task(name="extract", tags=["etl"])
+        def extract() -> str:
+            return "data"
+
+        @task(name="load", dependencies=["extract"], tags=["etl"])
+        def load() -> None:
+            pass
+
+        planner = Planner(registry)
+        plan = planner.create_execution_plan(root_tasks=["extract"], dag_id="daily_etl")
+
+        assert plan.dag.dag_id == "daily_etl"
+
+    def test_planner_auto_generates_dag_id(self) -> None:
+        """Test that planner auto-generates DAG ID if not provided."""
+        registry = get_registry()
+
+        @task(name="A")
+        def task_a() -> str:
+            return "a"
+
+        planner = Planner(registry)
+        plan = planner.create_execution_plan(root_tasks=["A"])
+
+        # Should have auto-generated content hash
+        assert plan.dag.dag_id
+        assert len(plan.dag.dag_id) == 16

@@ -32,6 +32,9 @@ class Planner:
         self,
         task_names: list[str] | None = None,
         tags: list[str] | None = None,
+        root_tasks: list[str] | None = None,
+        include_upstream: bool = False,
+        dag_id: str | None = None,
     ) -> ExecutionPlan:
         """
         Create an execution plan.
@@ -39,9 +42,16 @@ class Planner:
         Builds a DAG from the task registry, validates it, and creates
         an execution plan with topological ordering and parallel levels.
 
+        Priority:
+        1. If root_tasks provided, build DAG from those roots
+        2. Otherwise, build DAG from task_names or tags
+
         Args:
             task_names: Specific task names to include. If None, include all tasks.
             tags: Filter tasks by tags. If None, no tag filtering.
+            root_tasks: Start from specific root tasks and include their downstream.
+            include_upstream: If True (with root_tasks), include upstream dependencies.
+            dag_id: Optional DAG ID. If not provided, content hash will be used.
 
         Returns:
             ExecutionPlan ready for execution.
@@ -50,15 +60,33 @@ class Planner:
             ValueError: If DAG validation fails or no tasks match criteria.
 
         Example:
-            planner = Planner(registry)
+            # Using tags
             plan = planner.create_execution_plan(tags=["etl"])
-            print(f"Execution order: {plan.execution_order}")
-            print(f"Parallel levels: {plan.parallel_levels}")
+
+            # Using root tasks
+            plan = planner.create_execution_plan(root_tasks=["extract"])
+
+            # With explicit DAG ID
+            plan = planner.create_execution_plan(
+                root_tasks=["extract"],
+                dag_id="daily_etl"
+            )
         """
         logging.info("Creating execution plan...")
 
         # Build DAG (includes validation)
-        dag = self.dag_builder.build_dag(task_names=task_names, tags=tags)
+        if root_tasks:
+            dag = self.dag_builder.build_dag_from_roots(
+                root_tasks=root_tasks,
+                include_upstream=include_upstream,
+                dag_id=dag_id,
+            )
+        else:
+            dag = self.dag_builder.build_dag(
+                task_names=task_names,
+                tags=tags,
+                dag_id=dag_id,
+            )
 
         # Create execution plan
         plan = ExecutionPlan(dag=dag)
@@ -71,6 +99,8 @@ class Planner:
         self,
         task_names: list[str] | None = None,
         tags: list[str] | None = None,
+        root_tasks: list[str] | None = None,
+        include_upstream: bool = False,
     ) -> list[str]:
         """
         Validate task dependencies without creating a full execution plan.
@@ -80,6 +110,8 @@ class Planner:
         Args:
             task_names: Specific task names to validate. If None, validate all tasks.
             tags: Filter tasks by tags. If None, no tag filtering.
+            root_tasks: Start from specific root tasks.
+            include_upstream: If True (with root_tasks), include upstream dependencies.
 
         Returns:
             List of validation error messages. Empty list if valid.
@@ -95,7 +127,13 @@ class Planner:
                 print("Validation passed!")
         """
         try:
-            _ = self.dag_builder.build_dag(task_names=task_names, tags=tags)
+            if root_tasks:
+                _ = self.dag_builder.build_dag_from_roots(
+                    root_tasks=root_tasks,
+                    include_upstream=include_upstream,
+                )
+            else:
+                _ = self.dag_builder.build_dag(task_names=task_names, tags=tags)
             # DAG builder already validates, so if we get here, it's valid
             return []
         except ValueError as e:
@@ -111,6 +149,8 @@ class Planner:
         self,
         task_names: list[str] | None = None,
         tags: list[str] | None = None,
+        root_tasks: list[str] | None = None,
+        include_upstream: bool = False,
     ) -> int:
         """
         Get the number of tasks that would be included in a plan.
@@ -118,12 +158,20 @@ class Planner:
         Args:
             task_names: Specific task names to count. If None, count all tasks.
             tags: Filter tasks by tags. If None, no tag filtering.
+            root_tasks: Start from specific root tasks.
+            include_upstream: If True (with root_tasks), include upstream dependencies.
 
         Returns:
             Number of tasks.
         """
         try:
-            dag = self.dag_builder.build_dag(task_names=task_names, tags=tags)
+            if root_tasks:
+                dag = self.dag_builder.build_dag_from_roots(
+                    root_tasks=root_tasks,
+                    include_upstream=include_upstream,
+                )
+            else:
+                dag = self.dag_builder.build_dag(task_names=task_names, tags=tags)
             return len(dag)
         except ValueError:
             return 0

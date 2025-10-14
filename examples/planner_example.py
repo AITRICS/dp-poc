@@ -141,10 +141,37 @@ def main() -> None:
     # Show DAG statistics
     print("\n6. DAG Statistics:")
     dag_dict = plan.dag.to_dict()
+    print(f"   - DAG ID (content hash): {plan.dag.dag_id}")
     print(f"   - Total nodes: {dag_dict['node_count']}")
     print(f"   - Root nodes: {dag_dict['root_nodes']}")
     print(f"   - Leaf nodes: {dag_dict['leaf_nodes']}")
     print(f"   - Execution levels: {plan.get_total_levels()}")
+
+    # Demonstrate root_tasks feature
+    print("\n7. Using root_tasks (partial execution):")
+    print("   Creating plan starting from 'extract_data' only:")
+    partial_plan = planner.create_execution_plan(
+        root_tasks=["extract_data"],
+        dag_id="etl_from_extract",  # Optional: explicit DAG ID
+    )
+    print(f"   - DAG ID: {partial_plan.dag.dag_id}")
+    print(f"   - Tasks included: {partial_plan.execution_order}")
+    print(f"   - Levels: {partial_plan.parallel_levels}")
+
+    # Demonstrate DAG comparison
+    print("\n8. DAG Structure Comparison:")
+    plan_a = planner.create_execution_plan(root_tasks=["extract_data"])
+    plan_b = planner.create_execution_plan(root_tasks=["extract_data"])
+    print(f"   - Same structure? {plan_a.dag.is_same_structure(plan_b.dag)}")
+    print(f"   - Plan A hash: {plan_a.dag.get_content_hash()}")
+    print(f"   - Plan B hash: {plan_b.dag.get_content_hash()}")
+
+    # Independent task
+    print("\n9. Independent DAG:")
+    independent_plan = planner.create_execution_plan(root_tasks=["report"])
+    print(f"   - DAG ID: {independent_plan.dag.dag_id}")
+    print(f"   - Tasks: {independent_plan.execution_order}")
+    print(f"   - Same structure as ETL? {independent_plan.dag.is_same_structure(plan.dag)}")
 
     print("\n" + "=" * 60)
 

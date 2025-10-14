@@ -3,6 +3,7 @@ DAG (Directed Acyclic Graph) implementation.
 Manages nodes and their dependencies, with cycle detection and topological sorting.
 """
 
+import hashlib
 import logging
 from collections import deque
 from typing import Any
@@ -16,12 +17,24 @@ class DAG:
 
     Manages nodes and their dependencies, validates the graph structure,
     and provides topological sorting for execution order.
+
+    The DAG has a unique ID based on either:
+    - User-provided ID (if specified)
+    - Content hash (auto-generated from DAG structure)
     """
 
-    def __init__(self) -> None:
-        """Initialize an empty DAG."""
+    def __init__(self, dag_id: str | None = None) -> None:
+        """
+        Initialize a DAG.
+
+        Args:
+            dag_id: Optional user-provided DAG ID. If not provided,
+                   a content hash will be generated automatically.
+        """
         self._nodes: dict[str, Node] = {}
         self._validated = False
+        self._user_provided_id = dag_id
+        self._content_hash: str | None = None
 
     def add_node(self, node: Node) -> None:
         """
@@ -256,3 +269,80 @@ class DAG:
     def __contains__(self, node_id: str) -> bool:
         """Check if a node exists in the DAG."""
         return node_id in self._nodes
+
+    @property
+    def dag_id(self) -> str:
+        """
+        Get the DAG ID.
+
+        Returns user-provided ID if available, otherwise generates
+        a content hash based on the DAG structure.
+
+        Returns:
+            DAG identifier string.
+        """
+        if self._user_provided_id:
+            return self._user_provided_id
+
+        if not self._content_hash:
+            self._content_hash = self._generate_content_hash()
+
+        return self._content_hash
+
+    def get_content_hash(self) -> str:
+        """
+        Get the content hash of the DAG.
+
+        This is always calculated from the DAG structure,
+        regardless of whether a user-provided ID exists.
+
+        Returns:
+            Content hash string (16 characters).
+        """
+        if not self._content_hash:
+            self._content_hash = self._generate_content_hash()
+        return self._content_hash
+
+    def is_same_structure(self, other: "DAG") -> bool:
+        """
+        Check if this DAG has the same structure as another DAG.
+
+        Two DAGs have the same structure if they have the same content hash.
+
+        Args:
+            other: Another DAG to compare with.
+
+        Returns:
+            True if structures are identical, False otherwise.
+        """
+        return self.get_content_hash() == other.get_content_hash()
+
+    def _generate_content_hash(self) -> str:
+        """
+        Generate a deterministic content hash from the DAG structure.
+
+        The hash is based on:
+        - Sorted node names
+        - Sorted dependency edges
+
+        Same structure → Same hash
+
+        Returns:
+            First 16 characters of SHA256 hash.
+        """
+        # Get sorted node names
+        node_names = sorted(self._nodes.keys())
+
+        # Get sorted edges (upstream -> downstream)
+        edges: list[str] = []
+        for node_name in node_names:
+            node = self._nodes[node_name]
+            for upstream in sorted(node.upstream):
+                edges.append(f"{upstream}->{node_name}")
+
+        # Create deterministic string representation
+        content = "|".join(node_names) + "||" + "|".join(sorted(edges))
+
+        # Generate SHA256 hash and return first 16 characters
+        hash_obj = hashlib.sha256(content.encode("utf-8"))
+        return hash_obj.hexdigest()[:16]
