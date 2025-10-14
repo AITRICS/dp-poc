@@ -239,12 +239,56 @@ def main() -> None:
     except ValueError:
         print("   ✓ Strict mode: missing schemas detected")
 
+    # Example 10: Control flow vs Data flow dependencies
+    print("\n10. Control Flow vs Data Flow Dependencies:")
+    clear_registry()
+
+    @task(name="setup_db")
+    def setup_db() -> None:
+        """Setup database - no output, control flow only."""
+        print("   [Setup] Database initialized")
+
+    @task(name="extract_other", dependencies=["setup_db"])
+    def extract_other() -> list[int]:
+        """Extract data - needs DB ready but doesn't use setup_db's output."""
+        print("   [Extract] Fetching data")
+        return [1, 2, 3, 4, 5]
+
+    @task(name="transform_other", dependencies=["setup_db", "extract"])
+    def transform_other(extract: list[int]) -> int:
+        """Transform data.
+
+        Dependencies:
+        - setup_db: control flow (no parameter, just execution order)
+        - extract: data flow (has parameter, receives data)
+        """
+        print(f"   [Transform] Processing {extract}")
+        return sum(extract)
+
+    @task(name="cleanup", dependencies=["transform"])
+    def cleanup() -> None:
+        """Cleanup - control flow only."""
+        print("   [Cleanup] Done")
+
+    planner = get_planner()
+    try:
+        plan = planner.create_execution_plan(validate_schemas=True)
+        print(f"   ✓ Mixed dependencies validated: {len(plan)} tasks")
+        print("     - setup_db → extract: control flow (no data)")
+        print("     - setup_db → transform: control flow (no data)")
+        print("     - extract → transform: data flow (list[int])")
+        print("     - transform → cleanup: control flow (no data)")
+    except ValueError as e:
+        print(f"   ✗ Validation failed: {e}")
+
     print("\n" + "=" * 60)
     print("Schema validation provides:")
     print("  - Type safety between connected tasks")
     print("  - Named argument mapping (parameter = task name)")
     print("  - Optional parameter support (defaults ignored)")
     print("  - Advanced type checking (generics, unions, inheritance)")
+    print("  - Control flow dependencies (execution order only)")
+    print("  - Data flow dependencies (type-checked data transfer)")
     print("  - Opt-in validation (validate_schemas=True)")
     print("=" * 60)
 

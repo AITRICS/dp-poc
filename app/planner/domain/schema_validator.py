@@ -64,7 +64,13 @@ class SchemaValidator:
         """
         Validate single connection between two tasks.
 
-        Checks:
+        Supports two types of dependencies:
+        1. Control Flow Dependency: Only execution order matters (no data transfer)
+           - Detected when: upstream has no output OR downstream has no matching parameter
+        2. Data Flow Dependency: Data is passed and type compatibility is checked
+           - Detected when: downstream has a parameter matching upstream task name
+
+        Checks for Data Flow Dependencies:
         1. Parameter existence (upstream task name in downstream parameters)
         2. Optional vs required parameters (skip if has default)
         3. Output → Input type compatibility
@@ -88,17 +94,26 @@ class SchemaValidator:
 
         params = sig.parameters
 
-        # Check if upstream task name is in downstream parameters
-        if upstream_task.name not in params:
-            errors.append(
-                f"Task '{downstream_task.name}' missing parameter "
-                f"'{upstream_task.name}' for upstream dependency"
-            )
+        # Control Flow Dependency Detection:
+        # If upstream has no output (None or NoneType), it's a control flow dependency
+        # No data transfer validation needed
+        if upstream_task.output_schema is None or upstream_task.output_schema is type(None):
+            # Control flow only - just ensures execution order
             return errors
 
+        # Control Flow Dependency Detection:
+        # If downstream doesn't have a parameter matching upstream task name,
+        # treat it as control flow dependency (execution order only)
+        if upstream_task.name not in params:
+            # Control flow only - downstream doesn't consume upstream's output
+            return errors
+
+        # Data Flow Dependency:
+        # Downstream has a parameter matching upstream task name
+        # Validate type compatibility
         param = params[upstream_task.name]
 
-        # Skip validation if parameter has default value (optional)
+        # Skip validation if parameter has default value (optional data flow)
         if param.default is not inspect.Parameter.empty:
             # This parameter is optional, no need to validate
             return errors
@@ -117,7 +132,7 @@ class SchemaValidator:
                     f"'{upstream_task.name}' missing type annotation"
                 )
 
-        # Type compatibility check
+        # Type compatibility check for data flow
         if not SchemaValidator._is_type_compatible(output_type, input_type):
             errors.append(
                 f"Type mismatch: '{upstream_task.name}' output "

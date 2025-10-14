@@ -36,6 +36,7 @@
 - 병렬 실행 레벨 계산
 - 의존성 검증
 - **Schema Validator**: Task 간 타입 호환성 검증
+  - Control Flow vs Data Flow Dependency 구분
   - Named Arguments (파라미터 이름 = task 이름)
   - Advanced Type Checking (Generic, Union, Inheritance)
   - Optional Parameters (기본값 있는 파라미터는 검증 제외)

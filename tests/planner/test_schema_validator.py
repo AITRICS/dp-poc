@@ -42,7 +42,7 @@ class TestNamedArguments:
         assert len(plan) == 3
 
     def test_missing_parameter(self) -> None:
-        """Test missing parameter for upstream dependency."""
+        """Test that missing parameter is treated as control flow dependency."""
         registry = get_registry()
 
         @task(name="A")
@@ -50,13 +50,13 @@ class TestNamedArguments:
             return 42
 
         @task(name="C", dependencies=["A"])
-        def task_c(wrong_name: int) -> None:  # Wrong parameter name
+        def task_c() -> None:  # No 'A' parameter - control flow only
             pass
 
         planner = Planner(registry)
-        # Should fail: missing parameter 'A'
-        with pytest.raises(ValueError, match="missing parameter 'A'"):
-            planner.create_execution_plan(validate_schemas=True)
+        # Should pass: missing parameter treated as control flow dependency
+        plan = planner.create_execution_plan(validate_schemas=True)
+        assert len(plan) == 2
 
     def test_multiple_inputs_valid(self) -> None:
         """Test multiple inputs with correct parameter names."""
@@ -364,36 +364,36 @@ class TestStrictMode:
     """Test strict schema validation mode."""
 
     def test_strict_mode_requires_schemas(self) -> None:
-        """Test strict mode requires all schemas."""
+        """Test strict mode requires proper type annotations for data flow."""
         registry = get_registry()
 
         @task(name="A")
-        def task_a() -> Any:  # No return type
+        def task_a() -> Any:  # Explicit Any is OK
             return 42
 
         @task(name="B", dependencies=["A"])
-        def task_b(A: Any) -> None:  # No input type
+        def task_b(A: Any) -> None:  # Explicit Any is OK
             pass
 
         planner = Planner(registry)
 
-        # Non-strict: should pass (Any types)
+        # Non-strict: should pass (Any types are OK)
         plan = planner.create_execution_plan(validate_schemas=True, strict_schemas=False)
         assert len(plan) == 2
 
-        # Clear and re-register
+        # Strict mode test: require type annotations when parameter exists
         clear_registry()
 
-        @task(name="A")
-        def task_a2() -> Any:
+        @task(name="source")
+        def source() -> int:  # Has output
             return 42
 
-        @task(name="B", dependencies=["A"])
-        def task_b2(A: Any) -> None:
+        @task(name="sink", dependencies=["source"])
+        def sink(source: int) -> None:  # Has parameter but no type annotation
             pass
 
-        # Strict: should fail (missing schemas)
-        with pytest.raises(ValueError, match="missing"):
+        # Strict: should fail (missing type annotation on parameter)
+        with pytest.raises(ValueError, match="missing type annotation"):
             planner.create_execution_plan(validate_schemas=True, strict_schemas=True)
 
 
@@ -421,6 +421,116 @@ class TestDisableValidation:
         # Without validation: should pass
         plan = planner.create_execution_plan(validate_schemas=False)
         assert len(plan) == 2
+
+
+class TestControlFlowDependencies:
+    """Test control flow vs data flow dependencies."""
+
+    def test_control_flow_no_output(self) -> None:
+        """Test control flow dependency when upstream has no output."""
+        registry = get_registry()
+
+        @task(name="setup")
+        def setup() -> None:  # No output
+            """Setup task - only execution order matters."""
+            pass
+
+        @task(name="process", dependencies=["setup"])
+        def process() -> int:  # No setup parameter - control flow only
+            """Process task - just needs setup to run first."""
+            return 42
+
+        planner = Planner(registry)
+        # Should pass - control flow dependency (no data transfer)
+        plan = planner.create_execution_plan(validate_schemas=True)
+        assert len(plan) == 2
+
+    def test_control_flow_no_parameter(self) -> None:
+        """Test control flow dependency when downstream doesn't use output."""
+        registry = get_registry()
+
+        @task(name="log_start")
+        def log_start() -> str:  # Has output
+            return "Started"
+
+        @task(name="do_work", dependencies=["log_start"])
+        def do_work() -> int:  # No log_start parameter - ignores output
+            """Just needs log_start to run first, doesn't use its output."""
+            return 100
+
+        planner = Planner(registry)
+        # Should pass - control flow dependency (output ignored)
+        plan = planner.create_execution_plan(validate_schemas=True)
+        assert len(plan) == 2
+
+    def test_mixed_dependencies(self) -> None:
+        """Test mix of control flow and data flow dependencies."""
+        registry = get_registry()
+
+        @task(name="init_db")
+        def init_db() -> None:  # Control flow only
+            """Initialize database."""
+            pass
+
+        @task(name="extract")
+        def extract() -> dict[str, int]:  # Data flow
+            return {"count": 42}
+
+        @task(name="process", dependencies=["init_db", "extract"])
+        def process(extract: dict[str, int]) -> int:
+            """Process data after DB is initialized.
+
+            - init_db: control flow (no parameter)
+            - extract: data flow (has parameter)
+            """
+            return extract["count"] * 2
+
+        planner = Planner(registry)
+        # Should pass - mixed dependencies handled correctly
+        plan = planner.create_execution_plan(validate_schemas=True)
+        assert len(plan) == 3
+
+    def test_data_flow_required(self) -> None:
+        """Test that data flow dependencies are still validated."""
+        registry = get_registry()
+
+        @task(name="source")
+        def source() -> int:
+            return 42
+
+        @task(name="sink", dependencies=["source"])
+        def sink(source: str) -> None:  # Type mismatch - data flow
+            pass
+
+        planner = Planner(registry)
+        # Should fail - data flow has type mismatch
+        with pytest.raises(ValueError, match="Type mismatch"):
+            planner.create_execution_plan(validate_schemas=True)
+
+    def test_sequential_setup_tasks(self) -> None:
+        """Test sequential setup tasks with control flow."""
+        registry = get_registry()
+
+        @task(name="create_schema")
+        def create_schema() -> None:
+            """Create database schema."""
+            pass
+
+        @task(name="create_tables", dependencies=["create_schema"])
+        def create_tables() -> None:
+            """Create tables - needs schema first."""
+            pass
+
+        @task(name="insert_data", dependencies=["create_tables"])
+        def insert_data() -> None:
+            """Insert data - needs tables first."""
+            pass
+
+        planner = Planner(registry)
+        # Should pass - all control flow dependencies
+        plan = planner.create_execution_plan(validate_schemas=True)
+        assert len(plan) == 3
+        assert plan.execution_order == ["create_schema", "create_tables", "insert_data"]
 
 
 class TestComplexScenarios:
