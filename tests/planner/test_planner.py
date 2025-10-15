@@ -480,7 +480,8 @@ class TestPlanner:
         def load() -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(tags=["etl"])
 
         assert len(plan) == 3
@@ -498,7 +499,8 @@ class TestPlanner:
         def task_b() -> str:
             return "b"
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         errors = planner.validate_plan()
 
         assert errors == []
@@ -511,7 +513,8 @@ class TestPlanner:
         def task_a() -> str:
             return "a"
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         errors = planner.validate_plan()
 
         assert len(errors) > 0
@@ -532,7 +535,8 @@ class TestPlanner:
         def task_c() -> str:
             return "c"
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
 
         assert planner.get_task_count() == 3
         assert planner.get_task_count(tags=["etl"]) == 2
@@ -567,7 +571,8 @@ class TestIntegration:
             pass
 
         # Create planner
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
 
         # Validate
         errors = planner.validate_plan(tags=["etl"])
@@ -698,7 +703,8 @@ class TestRootTasks:
         def task_c() -> str:
             return "c"
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(root_tasks=["A"])
 
         # Should only include A and B (A's downstream)
@@ -727,7 +733,8 @@ class TestRootTasks:
         def task_d() -> str:
             return "d"
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(root_tasks=["A", "C"])
 
         # Should include A, B, C, D
@@ -749,7 +756,8 @@ class TestRootTasks:
         def task_c() -> str:
             return "c"
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
 
         # Start from C without upstream
         plan1 = planner.create_execution_plan(root_tasks=["C"])
@@ -781,7 +789,8 @@ class TestRootTasks:
         def transform2() -> str:
             return "transformed2"
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
 
         # Create two independent DAGs
         plan1 = planner.create_execution_plan(root_tasks=["extract1"])
@@ -812,7 +821,8 @@ class TestPlannerWithDAGID:
         def load() -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(root_tasks=["extract"], dag_id="daily_etl")
 
         assert plan.dag.dag_id == "daily_etl"
@@ -825,7 +835,8 @@ class TestPlannerWithDAGID:
         def task_a() -> str:
             return "a"
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(root_tasks=["A"])
 
         # Should have auto-generated content hash

@@ -8,26 +8,24 @@ import logging
 from app.planner.domain.dag_builder import DAGBuilder
 from app.planner.domain.execution_plan import ExecutionPlan
 from app.planner.domain.schema_validator import SchemaValidator
-from app.task_registry.domain.registry_port import RegistryPort
 
 
 class Planner:
     """
     Main planner interface.
 
-    Orchestrates the creation of execution plans from task registry.
+    Orchestrates the creation of execution plans from DAG builder.
     Provides both validation-only and full plan creation methods.
     """
 
-    def __init__(self, registry: RegistryPort) -> None:
+    def __init__(self, dag_builder: DAGBuilder) -> None:
         """
         Initialize planner.
 
         Args:
-            registry: Task registry to use for planning.
+            dag_builder: DAG builder to use for planning.
         """
-        self.registry = registry
-        self.dag_builder = DAGBuilder(registry)
+        self.dag_builder = dag_builder
 
     def create_execution_plan(
         self,
@@ -134,7 +132,8 @@ class Planner:
             List of validation error messages. Empty list if valid.
 
         Example:
-            planner = Planner(registry)
+            dag_builder = DAGBuilder(registry)
+            planner = Planner(dag_builder)
             errors = planner.validate_plan(tags=["etl"])
             if errors:
                 print("Validation failed:")

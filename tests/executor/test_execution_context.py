@@ -6,6 +6,7 @@ import pytest
 
 from app.executor.domain.execution_context import ExecutionContext
 from app.io_manager.infrastructure.filesystem_io_manager import FilesystemIOManager
+from app.planner.domain.dag_builder import DAGBuilder
 from app.planner.domain.execution_plan import ExecutionPlan
 from app.planner.domain.planner import Planner
 from app.task_registry.domain.task_model import TaskMetadata
@@ -36,7 +37,8 @@ def sample_registry() -> TaskRegistry:
 @pytest.fixture
 def sample_execution_plan(sample_registry: TaskRegistry) -> ExecutionPlan:
     """Create a sample execution plan for testing."""
-    planner = Planner(sample_registry)
+    dag_builder = DAGBuilder(sample_registry)
+    planner = Planner(dag_builder)
     return planner.create_execution_plan()
 
 
@@ -223,7 +225,8 @@ class TestExecutionContext:
         registry.register(TaskMetadata(name="B", func=task_b, dependencies=["A"]))
         registry.register(TaskMetadata(name="C", func=task_c, dependencies=["A"]))
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         execution_plan = planner.create_execution_plan()
 
         ctx = ExecutionContext(

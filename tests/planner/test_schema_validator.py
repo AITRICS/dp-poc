@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from app.planner import Planner
+from app.planner import DAGBuilder, Planner
 from app.task_registry import clear_registry, get_registry, task
 
 
@@ -36,7 +36,8 @@ class TestNamedArguments:
         def task_c(A: int, B: str) -> None:  # Parameter names match task names
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should pass validation
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 3
@@ -53,7 +54,8 @@ class TestNamedArguments:
         def task_c() -> None:  # No 'A' parameter - control flow only
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should pass: missing parameter treated as control flow dependency
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
@@ -74,7 +76,8 @@ class TestNamedArguments:
         def merge(extract_db: dict[str, int], extract_api: dict[str, str]) -> dict[str, Any]:
             return {"db": extract_db, "api": extract_api}
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 3
 
@@ -98,7 +101,8 @@ class TestOptionalParameters:
         ) -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should pass: only 'A' is validated
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
@@ -118,7 +122,8 @@ class TestOptionalParameters:
         ) -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should pass: optional parameters don't need upstream
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
@@ -139,7 +144,8 @@ class TestTypeCompatibility:
         def task_b(A: int) -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -155,7 +161,8 @@ class TestTypeCompatibility:
         def task_b(A: Any) -> None:  # No annotation = Any
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -171,7 +178,8 @@ class TestTypeCompatibility:
         def task_b(A: int) -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -187,7 +195,8 @@ class TestTypeCompatibility:
         def task_b(A: str) -> None:  # Expects str, gets int
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         with pytest.raises(ValueError, match="Type mismatch"):
             planner.create_execution_plan(validate_schemas=True)
 
@@ -207,7 +216,8 @@ class TestGenericTypes:
         def task_b(A: list[int]) -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -223,7 +233,8 @@ class TestGenericTypes:
         def task_b(A: list[str]) -> None:  # Expects list[str], gets list[int]
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         with pytest.raises(ValueError, match="Type mismatch"):
             planner.create_execution_plan(validate_schemas=True)
 
@@ -239,7 +250,8 @@ class TestGenericTypes:
         def task_b(A: dict[str, int]) -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -255,7 +267,8 @@ class TestGenericTypes:
         def task_b(A: dict[str, Any]) -> None:  # Any value type
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -275,7 +288,8 @@ class TestUnionTypes:
         def task_b(A: int | str) -> None:  # Union accepts int
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -291,7 +305,8 @@ class TestUnionTypes:
         def task_b(A: int | str) -> None:  # Union doesn't include float
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         with pytest.raises(ValueError, match="Type mismatch"):
             planner.create_execution_plan(validate_schemas=True)
 
@@ -307,7 +322,8 @@ class TestUnionTypes:
         def task_b(A: int | None) -> None:  # Optional[int]
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -333,7 +349,8 @@ class TestInheritance:
         def task_b(A: Animal) -> None:  # Dog is Animal
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
 
@@ -355,7 +372,8 @@ class TestInheritance:
         def task_b(A: Dog) -> None:  # Animal is not necessarily Dog
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         with pytest.raises(ValueError, match="Type mismatch"):
             planner.create_execution_plan(validate_schemas=True)
 
@@ -375,7 +393,8 @@ class TestStrictMode:
         def task_b(A: Any) -> None:  # Explicit Any is OK
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
 
         # Non-strict: should pass (Any types are OK)
         plan = planner.create_execution_plan(validate_schemas=True, strict_schemas=False)
@@ -412,7 +431,8 @@ class TestDisableValidation:
         def task_b(A: str) -> None:  # Type mismatch
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
 
         # With validation: should fail
         with pytest.raises(ValueError, match="Type mismatch"):
@@ -440,7 +460,8 @@ class TestControlFlowDependencies:
             """Process task - just needs setup to run first."""
             return 42
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should pass - control flow dependency (no data transfer)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
@@ -458,7 +479,8 @@ class TestControlFlowDependencies:
             """Just needs log_start to run first, doesn't use its output."""
             return 100
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should pass - control flow dependency (output ignored)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 2
@@ -485,7 +507,8 @@ class TestControlFlowDependencies:
             """
             return extract["count"] * 2
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should pass - mixed dependencies handled correctly
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 3
@@ -502,7 +525,8 @@ class TestControlFlowDependencies:
         def sink(source: str) -> None:  # Type mismatch - data flow
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should fail - data flow has type mismatch
         with pytest.raises(ValueError, match="Type mismatch"):
             planner.create_execution_plan(validate_schemas=True)
@@ -526,7 +550,8 @@ class TestControlFlowDependencies:
             """Insert data - needs tables first."""
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         # Should pass - all control flow dependencies
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 3
@@ -557,7 +582,8 @@ class TestComplexScenarios:
         def report(sum: int, avg: float) -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(validate_schemas=True)
         assert len(plan) == 4
         assert plan.execution_order == [
@@ -583,7 +609,8 @@ class TestComplexScenarios:
         def load(transform: list[int]) -> None:
             pass
 
-        planner = Planner(registry)
+        dag_builder = DAGBuilder(registry)
+        planner = Planner(dag_builder)
         plan = planner.create_execution_plan(tags=["etl"], validate_schemas=True)
         assert len(plan) == 3
         assert plan.execution_order == ["extract", "transform", "load"]

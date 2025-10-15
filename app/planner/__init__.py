@@ -20,7 +20,7 @@ def get_planner() -> Planner:
     """
     Get the global planner instance.
 
-    The planner is lazily initialized with the global task registry.
+    The planner is lazily initialized with a DAG builder from the global task registry.
 
     Returns:
         The global Planner instance.
@@ -35,7 +35,8 @@ def get_planner() -> Planner:
     if _global_planner is None:
         from app.task_registry import get_registry
 
-        _global_planner = Planner(get_registry())
+        dag_builder = DAGBuilder(get_registry())
+        _global_planner = Planner(dag_builder)
     return _global_planner
 
 

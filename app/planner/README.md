@@ -183,10 +183,12 @@ level = plan.get_level("task_name")
 전체 프로세스를 통합하는 메인 인터페이스입니다.
 
 ```python
-from app.planner import Planner
+from app.planner import DAGBuilder, Planner
 from app.task_registry import get_registry
 
-planner = Planner(get_registry())
+# DAG Builder 생성 후 Planner 생성
+dag_builder = DAGBuilder(get_registry())
+planner = Planner(dag_builder)
 
 # 실행 계획 생성
 plan = planner.create_execution_plan(
