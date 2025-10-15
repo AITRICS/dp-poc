@@ -1,5 +1,7 @@
 """Pytest configuration and shared fixtures."""
 
+import contextlib
+import multiprocessing as mp
 from typing import Any
 
 import pytest
@@ -8,6 +10,11 @@ from app.event_system.domain.events import EventBase
 from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
 from app.event_system.infrastructure.in_memory_consumer import InMemoryConsumer
 from app.event_system.infrastructure.in_memory_publisher import InMemoryPublisher
+
+# Set multiprocessing start method to 'fork' for tests
+# This allows worker processes to inherit the parent's state including imports
+with contextlib.suppress(RuntimeError):
+    mp.set_start_method("fork", force=True)
 
 
 class DummyEvent(EventBase):

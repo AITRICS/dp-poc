@@ -1,3 +1,7 @@
 """Executor infrastructure implementations."""
 
-__all__: list[str] = []
+from app.executor.infrastructure.multiprocess_executor import MultiprocessExecutor
+
+__all__ = [
+    "MultiprocessExecutor",
+]

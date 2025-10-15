@@ -160,3 +160,23 @@ class TaskRegistry(RegistryPort):
         self._tasks.clear()
         self._tag_index.clear()
         logging.info("Cleared all tasks from registry")
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Support for pickling.
+
+        Returns:
+            State dictionary for pickle
+        """
+        return {
+            "_tasks": self._tasks,
+            "_tag_index": self._tag_index,
+        }
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        """Support for unpickling.
+
+        Args:
+            state: State dictionary from pickle
+        """
+        self._tasks = state["_tasks"]
+        self._tag_index = state["_tag_index"]
