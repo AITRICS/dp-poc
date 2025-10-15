@@ -7,7 +7,11 @@ import multiprocessing as mp
 from typing import TYPE_CHECKING
 
 from app.event_system.infrastructure.multiprocess_queue import MultiprocessQueue
-from app.executor.domain.executable_task import STOP_SENTINEL, ExecutableTask, _StopSentinel
+from app.executor.domain.executable_task import (
+    STOP_SENTINEL,
+    ExecutableTask,
+    _StopSentinel,
+)
 from app.executor.domain.execution_result import ExecutionResult
 from app.executor.domain.task_result import TaskResult
 from app.executor.infrastructure.orchestrator import Orchestrator

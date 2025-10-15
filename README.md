@@ -356,13 +356,14 @@ Orchestrator._create_executable_task("transform", completed_tasks)
 
 ## 🎯 주요 기능
 
-이 프로젝트는 5개의 핵심 시스템으로 구성되어 있습니다:
+이 프로젝트는 6개의 핵심 시스템으로 구성되어 있습니다:
 
 1. **Event System** 🔔 - 비동기 이벤트 메시징 시스템
 2. **Scheduler System** ⏰ - 다양한 트리거 기반 스케줄링 시스템
 3. **Task Registry** 📋 - Task 등록 및 메타데이터 관리 시스템
 4. **Planner** 🗺️ - DAG 기반 실행 계획 시스템
 5. **I/O Manager** 💾 - Task 결과 저장 및 로딩 시스템
+6. **Executor** ⚡ - Multiprocess 기반 병렬 Task 실행 시스템
 
 ### Event System
 - 토픽 기반 pub/sub 패턴
@@ -372,6 +373,11 @@ Orchestrator._create_executable_task("transform", completed_tasks)
 - **MultiprocessQueue**: `multiprocessing.Queue` 기반 프로세스 간 통신 (IPC) 지원
   - Async/Sync 통합 지원
   - 프로세스 안전한 Queue 구현
+- **DAGExecutionEvent**: Orchestrator와의 통신용 Event
+  - DAG 실행 설정을 담는 표준 포맷
+  - dag_id, tags, task_names로 DAG 식별
+  - root_tasks로 부분 실행 지원
+  - run_metadata로 실행 메타데이터 전달
 
 ### Scheduler System
 - **CronTrigger**: Crontab 기반 스케줄링
@@ -412,6 +418,22 @@ Orchestrator._create_executable_task("transform", completed_tasks)
   - Task Result ID 지원 (스트리밍 출력의 개별 결과 저장)
   - 구조화된 디렉토리: `{base_path}/{run_id}/{task_name}/{task_result_id}.pkl`
 - Run 단위 관리 (list, clear 지원)
+
+### Executor
+- **Multiprocess 기반 병렬 실행**: Dagster에서 영감을 받은 아키텍처
+- **Queue-based Pull Model**: Worker가 task queue에서 작업을 가져가는 방식
+  - Orchestrator: 메인 프로세스에서 DAG 분석 및 task 제출
+  - Worker Pool: Long-running 프로세스로 task 실행
+  - IPC: `MultiprocessQueue`를 통한 프로세스 간 통신
+- **동기/비동기 Task 지원**: `is_async` 플래그로 자동 처리
+- **Streaming 출력 지원**: Generator/AsyncGenerator로 대용량 데이터 처리
+  - 각 yield 값을 개별 TaskResult로 전송
+  - Fan-out: 스트리밍 완료 시 downstream task 트리거
+- **고급 실행 제어**:
+  - **Retry**: `max_retries` 설정으로 자동 재시도
+  - **Fail-safe**: `fail_safe=True`로 실패해도 파이프라인 계속 실행
+  - **Timeout**: Task 실행 시간 제한
+- **결과 저장**: I/O Manager를 통한 외부 저장 (queue에 큰 데이터 전송 안 함)
 
 ## 📦 프로젝트 구조
 
@@ -559,6 +581,45 @@ await publisher.publish("data.ingestion", DataEvent(topic="data.ingestion", data
 # Consume
 async for event in consumer.consume("data.ingestion"):
     print(f"Received: {event.data}")
+```
+
+#### DAGExecutionEvent 사용하기
+
+```python
+from app.event_system import DAGExecutionEvent
+
+# DAG ID로 전체 실행
+event = DAGExecutionEvent(
+    topic="dag.execution.etl",
+    dag_id="my_dag_123"
+)
+
+# Tags로 필터링하여 실행
+event = DAGExecutionEvent(
+    topic="dag.execution.daily",
+    tags=["etl", "daily"]
+)
+
+# 특정 task부터 부분 실행
+event = DAGExecutionEvent(
+    topic="dag.execution.partial",
+    dag_id="my_dag_123",
+    root_tasks=["transform", "load"],
+    include_upstream=False
+)
+
+# 실행 메타데이터 포함
+event = DAGExecutionEvent(
+    topic="dag.execution.manual",
+    tags=["etl"],
+    run_metadata={"triggered_by": "user", "reason": "manual_rerun"}
+)
+
+# Event에서 정보 추출
+dag_id = event.get_dag_id()
+tags = event.get_tags()
+root_tasks = event.get_root_tasks()
+metadata = event.get_run_metadata()
 ```
 
 ### 2. Scheduler 사용하기
@@ -710,6 +771,55 @@ def streaming_task(batch_size: int) -> Generator[list, None, None]:
         yield process_chunk(chunk)
 ```
 
+### 7. Executor로 DAG 실행하기
+
+```python
+from app.executor import MultiprocessExecutor
+from app.executor.domain.execution_context import ExecutionContext
+from app.io_manager.infrastructure.filesystem_io_manager import FilesystemIOManager
+from app.planner import get_planner
+
+# Task 정의
+@task(name="task_a")
+def task_a() -> int:
+    return 10
+
+@task(name="task_b", dependencies=["task_a"])
+def task_b(task_a: int) -> int:
+    return task_a * 2
+
+# Execution Plan 생성
+planner = get_planner()
+execution_plan = planner.create_execution_plan(tags=["my_pipeline"])
+
+# I/O Manager 생성
+io_manager = FilesystemIOManager()
+
+# Execution Context 생성
+context = ExecutionContext(
+    run_id="run_20250115_001",
+    dag_id=execution_plan.dag.dag_id,
+    execution_plan=execution_plan,
+    io_manager=io_manager,
+)
+
+# Executor 생성 및 실행
+executor = MultiprocessExecutor(num_workers=4)  # 4개의 worker 프로세스
+result = executor.run(context)
+
+# 결과 확인
+print(f"Status: {result.status}")
+print(f"Completed tasks: {result.completed_tasks}")
+print(f"Failed tasks: {result.failed_tasks}")
+print(f"Total execution time: {result.total_execution_time:.2f}s")
+
+# Task 결과 로딩
+task_b_results = result.get_task_results("task_b")
+if task_b_results:
+    final_value = io_manager.load("task_b", "run_20250115_001", task_b_results[0].task_result_id)
+    print(f"Final value: {final_value}")
+```
+
 ## 🧪 테스트
 
 ```bash
@@ -725,6 +835,7 @@ pytest tests/scheduler/ -v
 pytest tests/task_registry/ -v
 pytest tests/planner/ -v
 pytest tests/io_manager/ -v
+pytest tests/executor/ -v
 
 # 벤치마크 테스트
 make test-benchmark
@@ -852,15 +963,52 @@ await scheduler.start()
 - [x] ~~Task DAG 실행 계획~~ (Planner 완료)
 - [x] ~~I/O Manager 시스템~~ (FilesystemIOManager 완료)
 - [x] ~~MultiprocessQueue 구현~~ (완료)
-- [ ] Task DAG 실행 엔진 (Executor)
-  - [ ] ExecutableTask 도메인 모델
-  - [ ] Worker 프로세스 구현
-  - [ ] Orchestrator 구현
-  - [ ] MultiprocessExecutor 통합
+- [x] ~~Task DAG 실행 엔진~~ (Executor 완료)
+  - [x] ~~ExecutableTask 도메인 모델~~ (완료)
+  - [x] ~~Worker 프로세스 구현~~ (완료)
+  - [x] ~~Orchestrator 구현~~ (완료)
+  - [x] ~~MultiprocessExecutor 통합~~ (완료)
 - [ ] MongoDB I/O Manager 어댑터
 - [ ] 분산 스케줄링 지원
 - [ ] 모니터링 및 메트릭
 - [ ] UI 대시보드
+
+## 🚀 미래 개선사항
+
+### Worker Pool 할당 방식 (Push Model)
+
+현재 Executor는 **Queue-based Pull Model**을 사용합니다:
+- ✅ **장점**: 구현 간단, 자동 load balancing, Worker 장애에 강함
+- ✅ **적용**: 일반적인 데이터 파이프라인에 최적
+
+**Future: Push Model** - Worker 상태를 명시적으로 관리:
+```python
+# 구상안
+class WorkerPool:
+    def get_idle_worker() -> Worker:
+        """IDLE 상태의 worker 반환"""
+
+    def assign_task(worker: Worker, task: ExecutableTask):
+        """특정 worker에 task 할당"""
+```
+
+**Trade-offs**:
+- **Pull Model** (현재):
+  - 간단하고 안정적
+  - Worker가 자동으로 작업 분배
+  - 구현 복잡도: ⭐⭐
+- **Push Model** (미래):
+  - Worker별 상태 추적 필요
+  - 특정 worker에 특정 task 할당 가능 (GPU affinity 등)
+  - Worker 장애 시 재할당 로직 필요
+  - 구현 복잡도: ⭐⭐⭐⭐
+
+**Use Cases for Push Model**:
+- GPU task를 GPU-enabled worker에만 할당
+- Memory-intensive task를 고사양 worker에만 할당
+- Worker 간 workload 세밀한 제어
+
+현재는 Pull Model로 충분하며, 필요시 확장 가능한 구조입니다.
 
 ## 📝 라이센스
 
