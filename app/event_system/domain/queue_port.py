@@ -3,24 +3,24 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
 
-from .events import EventBase
-
-E = TypeVar("E", bound=EventBase)
+T = TypeVar("T")
 
 
-class QueuePort(ABC, Generic[E]):
+class QueuePort(ABC, Generic[T]):
     """
     An abstract port for a message queue.
     It defines the interface for queue operations.
+
+    Generic type T can be any type (not just EventBase).
     """
 
     @abstractmethod
-    async def put(self, item: E) -> None:
+    async def put(self, item: T) -> None:
         """Put an item into the queue."""
         raise NotImplementedError
 
     @abstractmethod
-    async def get(self) -> E:
+    async def get(self) -> T:
         """Get an item from the queue."""
         raise NotImplementedError
 

@@ -4,13 +4,12 @@ import asyncio
 from copy import deepcopy
 from typing import Generic, TypeVar
 
-from app.event_system.domain.events import EventBase
 from app.event_system.domain.queue_port import QueuePort
 
-E = TypeVar("E", bound=EventBase)
+T = TypeVar("T")
 
 
-class InMemoryQueue(QueuePort[E], Generic[E]):
+class InMemoryQueue(QueuePort[T], Generic[T]):
     """
     An in-memory, asyncio-based implementation of the QueuePort.
     It uses asyncio.Queue as the underlying queue implementation.
@@ -23,10 +22,10 @@ class InMemoryQueue(QueuePort[E], Generic[E]):
         Args:
             maxsize: Maximum size of the queue. 0 means unlimited.
         """
-        self._queue: asyncio.Queue[E] = asyncio.Queue(maxsize=maxsize)
+        self._queue: asyncio.Queue[T] = asyncio.Queue(maxsize=maxsize)
         self._maxsize = maxsize
 
-    async def put(self, item: E) -> None:
+    async def put(self, item: T) -> None:
         """
         Put an item into the queue.
 
@@ -43,7 +42,7 @@ class InMemoryQueue(QueuePort[E], Generic[E]):
         #             self._queue.put_nowait(queue.get_nowait())
         await self._queue.put(deepcopy(item))
 
-    async def get(self) -> E:
+    async def get(self) -> T:
         """
         Get an item from the queue.
 
