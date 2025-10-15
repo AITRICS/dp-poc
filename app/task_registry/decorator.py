@@ -25,6 +25,10 @@ def task(
     tags: list[str] | None = None,
     dependencies: list[str] | None = None,
     description: str | None = None,
+    max_retries: int = 0,
+    fail_safe: bool = False,
+    stream_output: bool = False,
+    timeout: int | None = None,
 ) -> Callable[[F], F]:
     """
     Decorator to register a function as a task.
@@ -36,6 +40,10 @@ def task(
         tags: List of tags for categorization.
         dependencies: List of task names this task depends on.
         description: Human-readable description (defaults to docstring).
+        max_retries: Maximum number of retries on failure (default: 0).
+        fail_safe: If True, continue execution even if this task fails (default: False).
+        stream_output: If True, task returns Generator and triggers fan-out execution (default: False).
+        timeout: Task execution timeout in seconds (int). None means no timeout (default: None).
 
     Returns:
         Decorated function (unchanged).
@@ -48,6 +56,11 @@ def task(
         @task(name="transform_data", dependencies=["extract_data"])
         def transform_data(data: dict[str, list[int]]) -> list[int]:
             return data["data"]
+
+        @task(name="process_stream", stream_output=True)
+        def process_stream() -> Generator[int, None, None]:
+            for i in range(10):
+                yield i
     """
 
     def decorator(func: F) -> F:
@@ -68,6 +81,10 @@ def task(
             output_schema=output_schema,
             description=description or func.__doc__,
             is_async=is_async_function(func),
+            max_retries=max_retries,
+            fail_safe=fail_safe,
+            stream_output=stream_output,
+            timeout=timeout,
         )
 
         # Register task
