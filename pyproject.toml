@@ -66,6 +66,8 @@ select = [
 ignore = [
     "E501",  # line too long (handled by formatter)
     "UP046", # Generic class uses Generic subclass (keep for Python 3.11 compatibility)
+    "TC001", # Move application import into TYPE_CHECKING block (false positives with dataclasses)
+    "TC003", # Move standard library import into TYPE_CHECKING block (false positives with dataclasses)
 ]
 
 [tool.ruff.lint.per-file-ignores]
