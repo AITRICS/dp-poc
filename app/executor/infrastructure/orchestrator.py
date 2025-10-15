@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import queue
 import time
 from typing import TYPE_CHECKING, Any
@@ -17,6 +18,8 @@ from app.executor.domain.task_status import TaskStatus
 
 if TYPE_CHECKING:
     from multiprocessing.queues import Queue as MPQueue
+
+logger = logging.getLogger(__name__)
 
 
 class Orchestrator:
@@ -296,7 +299,7 @@ class Orchestrator:
 
             except Exception as error:
                 # Unexpected error in orchestration loop
-                print(f"Orchestrator error: {error}")
+                logger.exception("Orchestrator error: %s", error)
                 break
 
         # Calculate final status

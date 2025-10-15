@@ -8,6 +8,8 @@ from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
 from app.event_system.infrastructure.in_memory_consumer import InMemoryConsumer
 from app.event_system.infrastructure.in_memory_publisher import InMemoryPublisher
 
+logger = logging.getLogger(__name__)
+
 
 # 1. Define concrete events based on EventBase
 @dataclass
@@ -41,16 +43,16 @@ async def consume_events(consumer: InMemoryConsumer[EventBase], topic: str) -> N
     """
     이벤트를 소비하는 비동기 함수
     """
-    print("Starting event consumption...")
+    logger.info("Starting event consumption...")
     async for event in consumer.consume(topic):
-        print(f"Processing event: {event.__class__.__name__}")
+        logger.info("Processing event: %s", event.__class__.__name__)
         # 여기서 각 이벤트에 대한 구체적인 처리 로직을 구현할 수 있습니다
         if isinstance(event, PipelineStarted):
-            print(f"  Pipeline '{event.pipeline_name}' has started!")
+            logger.info("Pipeline '%s' has started!", event.pipeline_name)
         elif isinstance(event, DataIngestionComplete):
-            print(f"  Ingested {event.rows_ingested} rows from {event.source_name}")
+            logger.info("Ingested %s rows from %s", event.rows_ingested, event.source_name)
 
-    print("Event consumption completed.")
+    logger.info("Event consumption completed.")
 
 
 async def consume_pattern_events(consumer: InMemoryConsumer[EventBase], topic_pattern: str) -> None:

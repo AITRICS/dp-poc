@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import logging
 import queue
-import sys
 from typing import TYPE_CHECKING
 
 from app.executor.domain.executable_task import ExecutableTask, _StopSentinel
@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
     from app.io_manager.domain.io_manager_port import IOManagerPort
     from app.task_registry.infrastructure.task_registry import TaskRegistry
+
+logger = logging.getLogger(__name__)
 
 
 def worker_loop(
@@ -79,9 +81,6 @@ def worker_loop(
                     )
                     result_queue.put(error_result)
             except Exception:
-                # If we can't even send error result, just log to stderr and continue
-                print(
-                    f"Worker {worker_id} encountered fatal error: {error}",
-                    file=sys.stderr,
-                )
+                # If we can't even send error result, just log and continue
+                logger.exception("Worker %s encountered fatal error: %s", worker_id, error)
                 continue

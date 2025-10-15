@@ -28,7 +28,8 @@ class TaskRegistry(RegistryPort):
         # Validate dependencies
         errors = registry.validate_dependencies()
         if errors:
-            print("Validation errors:", errors)
+            # Log validation errors if needed
+            pass  # Errors are returned to caller for handling
     """
 
     def __init__(self) -> None:

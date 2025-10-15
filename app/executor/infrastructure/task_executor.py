@@ -13,6 +13,7 @@ from uuid6 import uuid7
 from app.executor.domain.executable_task import ExecutableTask
 from app.executor.domain.task_result import TaskResult
 from app.io_manager.domain.io_manager_port import IOManagerPort
+from app.task_registry.domain.task_model import TaskMetadata
 
 
 def load_task_inputs(
@@ -250,7 +251,7 @@ def handle_streaming_results(
 
 def execute_task(
     task: ExecutableTask,
-    task_metadata: Any,  # TaskMetadata from registry
+    task_metadata: TaskMetadata,  # TaskMetadata from registry
     io_manager: IOManagerPort,
 ) -> list[TaskResult]:
     """Execute a task and return result(s).

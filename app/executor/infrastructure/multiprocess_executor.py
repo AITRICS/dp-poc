@@ -46,7 +46,8 @@ class MultiprocessExecutor:
         result = await executor.run_async(execution_context)
 
         if result.is_successful:
-            print(f"Completed {len(result.completed_tasks)} tasks")
+            # Process successful result
+            pass
         ```
     """
 

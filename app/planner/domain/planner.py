@@ -137,11 +137,12 @@ class Planner:
             planner = Planner(dag_builder)
             errors = planner.validate_plan(tags=["etl"])
             if errors:
-                print("Validation failed:")
-                for error in errors:
-                    print(f"  - {error}")
+                # Validation failed
+                # Errors are returned to caller for handling
+                pass
             else:
-                print("Validation passed!")
+                # Validation passed
+                pass
         """
         try:
             if root_tasks:
