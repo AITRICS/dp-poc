@@ -41,7 +41,7 @@ test:
 
 test-cov:
 	@echo "Running tests with coverage...";
-	@uv run pytest -v --cov --cov-report=term-missing --cov-report=html;
+	@uv run pytest -v --cov --cov-report=term-missing
 
 test-unit:
 	@echo "Running unit tests...";
