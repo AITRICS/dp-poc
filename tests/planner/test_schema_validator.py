@@ -389,7 +389,7 @@ class TestStrictMode:
             return 42
 
         @task(name="sink", dependencies=["source"])
-        def sink(source: int) -> None:  # Has parameter but no type annotation
+        def sink(source) -> None:  # type: ignore[no-untyped-def]  # Missing type annotation
             pass
 
         # Strict: should fail (missing type annotation on parameter)
