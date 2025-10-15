@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.task_registry.domain.task_model import TaskMetadata  # noqa: TC001
+from uuid6 import uuid7
+
+from app.task_registry.domain.task_model import TaskMetadata
 
 
 @dataclass
@@ -35,6 +38,8 @@ class ExecutableTask:
     inputs: dict[str, tuple[str, str]] = field(default_factory=dict)
     retry_count: int = 0
 
+    task_id: uuid.UUID = field(default_factory=uuid7)
+
     def __post_init__(self) -> None:
         """Validate the executable task."""
         if not self.run_id:
@@ -59,6 +64,7 @@ class ExecutableTask:
             "task_metadata": self.task_metadata.to_dict(),
             "inputs": self.inputs,
             "retry_count": self.retry_count,
+            "task_id": self.task_id,
         }
 
     def should_retry_on_failure(self) -> bool:
