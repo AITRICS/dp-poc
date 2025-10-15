@@ -7,6 +7,8 @@ from collections.abc import Generator
 import pytest
 
 from app.planner import DAG, DAGBuilder, ExecutionPlan, Node, Planner
+from app.planner.domain.dag_analyzer import DAGAnalyzer
+from app.planner.domain.dag_validator import DAGValidator
 from app.task_registry import clear_registry, get_registry, task
 
 
@@ -127,13 +129,13 @@ class TestDAG:
         dag.add_node(node_c)
 
         # Validate and test
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         assert errors == []
 
-        order = dag.topological_sort()
+        order = DAGAnalyzer.topological_sort(dag)
         assert order == ["A", "B", "C"]
 
-        dag.calculate_levels()
+        DAGAnalyzer.calculate_levels(dag)
         assert node_a.level == 0
         assert node_b.level == 1
         assert node_c.level == 2
@@ -159,10 +161,10 @@ class TestDAG:
         dag.add_node(node_b)
         dag.add_node(node_c)
 
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         assert errors == []
 
-        dag.calculate_levels()
+        DAGAnalyzer.calculate_levels(dag)
         assert node_a.level == 0
         assert node_b.level == 1
         assert node_c.level == 1  # B and C can run in parallel
@@ -192,10 +194,10 @@ class TestDAG:
         dag.add_node(node_c)
         dag.add_node(node_d)
 
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         assert errors == []
 
-        dag.calculate_levels()
+        DAGAnalyzer.calculate_levels(dag)
         assert node_a.level == 0
         assert node_b.level == 1
         assert node_c.level == 1
@@ -223,7 +225,7 @@ class TestDAG:
         dag.add_node(node_b)
         dag.add_node(node_c)
 
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         assert len(errors) > 0
         assert any("Cycle detected" in error for error in errors)
 
@@ -238,7 +240,7 @@ class TestDAG:
 
         dag.add_node(node_a)
 
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         assert len(errors) > 0
         assert any("does not exist" in error for error in errors)
 
@@ -253,7 +255,7 @@ class TestDAG:
 
         dag.add_node(node_a)
 
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         assert len(errors) > 0
         assert any("self-reference" in error for error in errors)
 

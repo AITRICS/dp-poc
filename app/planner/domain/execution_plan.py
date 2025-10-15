@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.planner.domain.dag import DAG
+from app.planner.domain.dag_analyzer import DAGAnalyzer
 from app.planner.domain.node import Node
 
 
@@ -35,7 +36,7 @@ class ExecutionPlan:
 
         # If not already set, calculate execution order and parallel levels
         if not self.execution_order:
-            self.execution_order = self.dag.topological_sort()
+            self.execution_order = DAGAnalyzer.topological_sort(self.dag)
 
         if not self.parallel_levels:
             self.parallel_levels = self._calculate_parallel_levels()

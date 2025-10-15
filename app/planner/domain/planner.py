@@ -6,6 +6,7 @@ Orchestrates DAG building and execution plan creation.
 import logging
 
 from app.planner.domain.dag_builder import DAGBuilder
+from app.planner.domain.dag_validator import DAGValidator
 from app.planner.domain.execution_plan import ExecutionPlan
 from app.planner.domain.schema_validator import SchemaValidator
 
@@ -93,7 +94,7 @@ class Planner:
             )
 
         # Validate structure
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         if errors:
             raise ValueError("DAG validation failed:\n" + "\n".join(errors))
 

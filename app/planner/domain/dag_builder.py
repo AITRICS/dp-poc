@@ -6,6 +6,8 @@ Constructs a DAG from TaskRegistry metadata.
 import logging
 
 from app.planner.domain.dag import DAG
+from app.planner.domain.dag_analyzer import DAGAnalyzer
+from app.planner.domain.dag_validator import DAGValidator
 from app.planner.domain.node import Node
 from app.task_registry.domain.registry_port import RegistryPort
 from app.task_registry.domain.task_model import TaskMetadata
@@ -77,12 +79,12 @@ class DAGBuilder:
                     upstream_node.downstream.add(node_id)
 
         # Validate and calculate levels
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         if errors:
             error_msg = "\n".join(errors)
             raise ValueError(f"DAG validation failed:\n{error_msg}")
 
-        dag.calculate_levels()
+        DAGAnalyzer.calculate_levels(dag)
 
         logging.info(
             f"Successfully built DAG with {len(dag)} nodes, "
@@ -240,12 +242,12 @@ class DAGBuilder:
                     upstream_node.downstream.add(node_id)
 
         # Validate and calculate levels
-        errors = dag.validate()
+        errors = DAGValidator.validate(dag)
         if errors:
             error_msg = "\n".join(errors)
             raise ValueError(f"DAG validation failed:\n{error_msg}")
 
-        dag.calculate_levels()
+        DAGAnalyzer.calculate_levels(dag)
 
         logging.info(
             f"Successfully built DAG with {len(dag)} nodes, "
