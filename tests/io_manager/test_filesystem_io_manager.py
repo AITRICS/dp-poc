@@ -15,7 +15,7 @@ class TestFilesystemIOManagerBasic:
     def test_init_default_path(self) -> None:
         """Test initialization with default path."""
         io_manager = FilesystemIOManager()
-        assert io_manager.base_path == Path("~/.dp-poc/runs").expanduser().resolve()
+        assert io_manager.base_path == Path("./.dp-poc/runs").expanduser().resolve()
 
     def test_init_custom_path(self) -> None:
         """Test initialization with custom path."""
