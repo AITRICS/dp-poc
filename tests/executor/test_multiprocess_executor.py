@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.event_system.domain.events import DAGExecutionEvent, ExecutionResultEvent
+from app.event_system.domain.events import DAGExecutionEvent, EventBase, ExecutionResultEvent
 from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
 from app.event_system.infrastructure.in_memory_consumer import InMemoryConsumer
 from app.event_system.infrastructure.in_memory_publisher import InMemoryPublisher
@@ -35,9 +35,9 @@ def clean_global_registry() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-async def event_broker() -> InMemoryBroker:
+async def event_broker() -> InMemoryBroker[EventBase]:
     """Create an in-memory event broker."""
-    broker = InMemoryBroker()
+    broker: InMemoryBroker[EventBase] = InMemoryBroker[EventBase]()
     # Declare topics
     await broker.declare_topic("dag.execution")
     await broker.declare_topic("task.submit")
@@ -64,7 +64,7 @@ class TestMultiprocessPoolManager:
 
     @pytest.mark.asyncio
     async def test_execute_simple_dag(
-        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker[EventBase]
     ) -> None:
         """Test executing a simple DAG."""
 
@@ -116,7 +116,7 @@ class TestMultiprocessPoolManager:
             result_event: ExecutionResultEvent | None = None
             completion_event = asyncio.Event()
 
-            async def listen_for_result():
+            async def listen_for_result() -> None:
                 nonlocal result_event
                 async for event in result_consumer.consume("dag.execution.result"):
                     if isinstance(event, ExecutionResultEvent):
@@ -144,7 +144,7 @@ class TestMultiprocessPoolManager:
 
     @pytest.mark.asyncio
     async def test_execute_parallel_tasks(
-        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker[EventBase]
     ) -> None:
         """Test executing parallel independent tasks."""
 
@@ -199,7 +199,7 @@ class TestMultiprocessPoolManager:
             result_event: ExecutionResultEvent | None = None
             completion_event = asyncio.Event()
 
-            async def listen_for_result():
+            async def listen_for_result() -> None:
                 nonlocal result_event
                 async for event in result_consumer.consume("dag.execution.result"):
                     if isinstance(event, ExecutionResultEvent):
@@ -210,9 +210,7 @@ class TestMultiprocessPoolManager:
             listener_task = asyncio.create_task(listen_for_result())
 
             # Publish DAG execution event
-            dag_event = DAGExecutionEvent(
-                topic="dag.execution", dag_id=execution_plan.dag.dag_id
-            )
+            dag_event = DAGExecutionEvent(topic="dag.execution", dag_id=execution_plan.dag.dag_id)
             await publisher.publish("dag.execution", dag_event)
 
             # Wait for completion
@@ -225,7 +223,7 @@ class TestMultiprocessPoolManager:
 
     @pytest.mark.asyncio
     async def test_execute_with_fail_safe(
-        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker[EventBase]
     ) -> None:
         """Test executing DAG with fail-safe task."""
 
@@ -280,7 +278,7 @@ class TestMultiprocessPoolManager:
             result_event: ExecutionResultEvent | None = None
             completion_event = asyncio.Event()
 
-            async def listen_for_result():
+            async def listen_for_result() -> None:
                 nonlocal result_event
                 async for event in result_consumer.consume("dag.execution.result"):
                     if isinstance(event, ExecutionResultEvent):
@@ -291,9 +289,7 @@ class TestMultiprocessPoolManager:
             listener_task = asyncio.create_task(listen_for_result())
 
             # Publish DAG execution event
-            dag_event = DAGExecutionEvent(
-                topic="dag.execution", dag_id=execution_plan.dag.dag_id
-            )
+            dag_event = DAGExecutionEvent(topic="dag.execution", dag_id=execution_plan.dag.dag_id)
             await publisher.publish("dag.execution", dag_event)
 
             # Wait for completion
@@ -304,6 +300,8 @@ class TestMultiprocessPoolManager:
         assert result_event is not None
         assert result_event.get_status() == "SUCCESS"
         assert "task_1" in result_event.get_completed_tasks()
-        assert "task_2_failsafe" in result_event.get_completed_tasks()  # Failsafe task is marked as completed
+        assert (
+            "task_2_failsafe" in result_event.get_completed_tasks()
+        )  # Failsafe task is marked as completed
         assert "task_2_failsafe" in result_event.get_failed_tasks()  # But also in failed_tasks
         assert "task_3" in result_event.get_completed_tasks()

@@ -71,8 +71,11 @@ def get_matching_topics(pattern: str, available_topics: set[str]) -> set[str]:
     """
     Get all topics that match the given pattern.
 
+    Supports OR operator with | to match multiple patterns:
+    - "data.*|logs.*" matches both data.pipeline and logs.app
+
     Args:
-        pattern: Topic pattern with wildcards.
+        pattern: Topic pattern with wildcards. Can use | for OR.
         available_topics: Set of available topic names.
 
     Returns:
@@ -84,6 +87,15 @@ def get_matching_topics(pattern: str, available_topics: set[str]) -> set[str]:
         {'data.pipeline', 'data.warehouse'}
         >>> get_matching_topics("data.**", topics)
         {'data.pipeline', 'data.warehouse', 'data.pipeline.ingestion'}
+        >>> get_matching_topics("data.*|logs.*", topics)
+        Matches topics matching either pattern
     """
-    regex = compile_topic_pattern(pattern)
-    return {topic for topic in available_topics if regex.match(topic)}
+    # Split by | to handle OR patterns
+    patterns = [p.strip() for p in pattern.split("|")]
+
+    matched_topics: set[str] = set()
+    for single_pattern in patterns:
+        regex = compile_topic_pattern(single_pattern)
+        matched_topics.update(topic for topic in available_topics if regex.match(topic))
+
+    return matched_topics

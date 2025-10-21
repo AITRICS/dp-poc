@@ -8,6 +8,7 @@ import pytest
 
 from app.event_system.domain.events import (
     DAGExecutionEvent,
+    EventBase,
     ExecutionResultEvent,
 )
 from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
@@ -38,9 +39,9 @@ def clean_global_registry() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-async def event_broker() -> InMemoryBroker:
+async def event_broker() -> InMemoryBroker[EventBase]:
     """Create an in-memory event broker."""
-    broker = InMemoryBroker()
+    broker: InMemoryBroker[EventBase] = InMemoryBroker[EventBase]()
     # Declare topics
     await broker.declare_topic("dag.execution")
     await broker.declare_topic("task.submit")
@@ -54,7 +55,7 @@ class TestSimpleIntegration:
 
     @pytest.mark.asyncio
     async def test_execute_single_task(
-        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker[EventBase]
     ) -> None:
         """Test executing a single task."""
 
@@ -103,7 +104,7 @@ class TestSimpleIntegration:
             result_event: ExecutionResultEvent | None = None
             completion_event = asyncio.Event()
 
-            async def listen_for_result():
+            async def listen_for_result() -> None:
                 nonlocal result_event
                 async for event in result_consumer.consume("dag.execution.result"):
                     if isinstance(event, ExecutionResultEvent):
@@ -129,7 +130,7 @@ class TestSimpleIntegration:
 
     @pytest.mark.asyncio
     async def test_execute_two_tasks_sequential(
-        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker[EventBase]
     ) -> None:
         """Test executing two tasks sequentially."""
 
@@ -179,7 +180,7 @@ class TestSimpleIntegration:
             result_event: ExecutionResultEvent | None = None
             completion_event = asyncio.Event()
 
-            async def listen_for_result():
+            async def listen_for_result() -> None:
                 nonlocal result_event
                 async for event in result_consumer.consume("dag.execution.result"):
                     if isinstance(event, ExecutionResultEvent):
@@ -207,7 +208,7 @@ class TestSimpleIntegration:
 
     @pytest.mark.asyncio
     async def test_execute_with_failure(
-        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker[EventBase]
     ) -> None:
         """Test executing DAG with task failure."""
 
@@ -257,7 +258,7 @@ class TestSimpleIntegration:
             result_event: ExecutionResultEvent | None = None
             completion_event = asyncio.Event()
 
-            async def listen_for_result():
+            async def listen_for_result() -> None:
                 nonlocal result_event
                 async for event in result_consumer.consume("dag.execution.result"):
                     if isinstance(event, ExecutionResultEvent):

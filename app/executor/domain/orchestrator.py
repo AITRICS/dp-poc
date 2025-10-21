@@ -99,9 +99,7 @@ class Orchestrator:
             return []
         return execution_plan.parallel_levels[0]
 
-    def _get_ready_tasks(
-        self, execution_plan: ExecutionPlan, state: ExecutionState
-    ) -> list[str]:
+    def _get_ready_tasks(self, execution_plan: ExecutionPlan, state: ExecutionState) -> list[str]:
         """Get tasks that are ready to execute.
 
         A task is ready if:
@@ -139,9 +137,7 @@ class Orchestrator:
 
         return ready
 
-    def _is_execution_complete(
-        self, execution_plan: ExecutionPlan, state: ExecutionState
-    ) -> bool:
+    def _is_execution_complete(self, execution_plan: ExecutionPlan, state: ExecutionState) -> bool:
         """Check if execution is complete.
 
         Args:
@@ -541,7 +537,7 @@ class Orchestrator:
 
     async def orchestrate(
         self,
-        topic_pattern: str = "dag.execution.**|task.submit.**|task.result.**",
+        topic_pattern: str = "dag.execution|task.submit|task.result",
     ) -> None:
         """Run the orchestration loop.
 

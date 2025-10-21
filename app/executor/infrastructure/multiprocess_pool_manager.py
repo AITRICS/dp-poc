@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import multiprocessing as mp
 import queue
 from typing import TYPE_CHECKING, Any
 
-from app.event_system.domain.events import TaskResultEvent
+from app.event_system.domain.events import EventBase, TaskResultEvent
 from app.event_system.infrastructure.multiprocess_queue import MultiprocessQueue
 from app.executor.domain.executable_task import (
     STOP_SENTINEL,
@@ -54,7 +55,7 @@ class MultiprocessPoolManager(WorkerPoolManagerPort):
         num_workers: int = 1,
         io_manager: IOManagerPort | None = None,
         registry: TaskRegistry | None = None,
-        publisher: PublisherPort | None = None,
+        publisher: PublisherPort[EventBase] | None = None,
     ) -> None:
         """Initialize the multiprocess pool manager.
 
@@ -81,26 +82,18 @@ class MultiprocessPoolManager(WorkerPoolManagerPort):
 
         # Worker processes
         self.workers: list[mp.Process] = []
-        
+
         # Result polling task
-        self._result_polling_task: asyncio.Task | None = None
+        self._result_polling_task: asyncio.Task[None] | None = None
         self._should_stop_polling = False
 
     def __enter__(self) -> MultiprocessPoolManager:
-        """Start the worker pool.
+        """Start the worker pool (sync version).
 
         Returns:
             Self for context manager pattern
         """
         self._start_workers()
-        # Start result polling if publisher is configured
-        if self.publisher is not None:
-            try:
-                loop = asyncio.get_running_loop()
-                self._result_polling_task = loop.create_task(self._poll_results())
-            except RuntimeError:
-                # No running event loop, polling will not be started
-                pass
         return self
 
     def __exit__(
@@ -109,7 +102,7 @@ class MultiprocessPoolManager(WorkerPoolManagerPort):
         exc_val: BaseException | None,
         exc_tb: Any,
     ) -> None:
-        """Stop the worker pool and cleanup resources.
+        """Stop the worker pool and cleanup resources (sync version).
 
         Args:
             exc_type: Exception type if an exception occurred
@@ -120,14 +113,43 @@ class MultiprocessPoolManager(WorkerPoolManagerPort):
         self._should_stop_polling = True
         if self._result_polling_task is not None:
             self._result_polling_task.cancel()
-            try:
-                # Wait for task to finish with timeout
-                asyncio.get_event_loop().run_until_complete(
-                    asyncio.wait_for(self._result_polling_task, timeout=1.0)
-                )
-            except (asyncio.TimeoutError, asyncio.CancelledError):
-                pass
-        
+
+        self._stop_workers()
+        self.task_queue.close()
+        self.result_queue.close()
+
+    async def __aenter__(self) -> MultiprocessPoolManager:
+        """Start the worker pool (async version).
+
+        Returns:
+            Self for async context manager pattern
+        """
+        self._start_workers()
+        # Start result polling if publisher is configured
+        if self.publisher is not None:
+            self._result_polling_task = asyncio.create_task(self._poll_results())
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        """Stop the worker pool and cleanup resources (async version).
+
+        Args:
+            exc_type: Exception type if an exception occurred
+            exc_val: Exception value if an exception occurred
+            exc_tb: Exception traceback if an exception occurred
+        """
+        # Stop result polling
+        self._should_stop_polling = True
+        if self._result_polling_task is not None:
+            self._result_polling_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._result_polling_task
+
         self._stop_workers()
         self.task_queue.close()
         self.result_queue.close()
@@ -238,5 +260,3 @@ class MultiprocessPoolManager(WorkerPoolManagerPort):
                 logger = logging.getLogger(__name__)
                 logger.exception("Error polling results: %s", error)
                 await asyncio.sleep(0.1)
-
-

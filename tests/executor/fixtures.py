@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+import contextlib
 
 from app.executor.domain.execution_state import ExecutionState
 from app.executor.domain.execution_state_repository_port import (
     ExecutionStateRepositoryPort,
 )
-
-if TYPE_CHECKING:
-    pass
 
 
 class InMemoryStateRepository(ExecutionStateRepositoryPort):
@@ -63,7 +60,7 @@ class TestHelper:
 
     @staticmethod
     async def run_until_complete(
-        orchestrator_task: asyncio.Task,
+        orchestrator_task: asyncio.Task[None],
         completion_event: asyncio.Event,
         timeout: float = 10.0,
     ) -> None:
@@ -82,8 +79,5 @@ class TestHelper:
         finally:
             # Cancel orchestrator task
             orchestrator_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await orchestrator_task
-            except asyncio.CancelledError:
-                pass
-
