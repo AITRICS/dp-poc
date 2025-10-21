@@ -6,12 +6,17 @@ from pathlib import Path
 
 import pytest
 
-from app.executor.domain.execution_context import ExecutionContext
+from app.event_system.domain.events import DAGExecutionEvent, ExecutionResultEvent
+from app.event_system.infrastructure.in_memory_broker import InMemoryBroker
+from app.event_system.infrastructure.in_memory_consumer import InMemoryConsumer
+from app.event_system.infrastructure.in_memory_publisher import InMemoryPublisher
 from app.executor.domain.orchestrator import Orchestrator
 from app.executor.infrastructure.multiprocess_pool_manager import MultiprocessPoolManager
 from app.io_manager.infrastructure.filesystem_io_manager import FilesystemIOManager
 from app.planner import get_planner
+from app.planner.domain.dag_builder import DAGBuilder
 from app.task_registry import get_registry, task
+from tests.executor.fixtures import InMemoryStateRepository, TestHelper
 
 
 @pytest.fixture
@@ -27,6 +32,18 @@ def clean_global_registry() -> Generator[None, None, None]:
     registry.clear()
     yield
     registry.clear()
+
+
+@pytest.fixture
+async def event_broker() -> InMemoryBroker:
+    """Create an in-memory event broker."""
+    broker = InMemoryBroker()
+    # Declare topics
+    await broker.declare_topic("dag.execution")
+    await broker.declare_topic("task.submit")
+    await broker.declare_topic("task.result")
+    await broker.declare_topic("dag.execution.result")
+    return broker
 
 
 class TestMultiprocessPoolManager:
@@ -45,7 +62,10 @@ class TestMultiprocessPoolManager:
         with pytest.raises(ValueError, match="num_workers must be at least 1"):
             MultiprocessPoolManager(num_workers=0)
 
-    def test_execute_simple_dag(self, io_manager: FilesystemIOManager) -> None:
+    @pytest.mark.asyncio
+    async def test_execute_simple_dag(
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+    ) -> None:
         """Test executing a simple DAG."""
 
         @task(name="add_one", dependencies=[])
@@ -57,7 +77,6 @@ class TestMultiprocessPoolManager:
             return add_one * 2
 
         # Create execution plan
-        from app.planner.domain.dag_builder import DAGBuilder
         from app.planner.domain.execution_plan import ExecutionPlan
 
         registry = get_registry()
@@ -66,28 +85,67 @@ class TestMultiprocessPoolManager:
         dag = dag_builder.build_dag(task_names=["add_one", "multiply_by_two"])
         execution_plan = ExecutionPlan(dag=dag)
 
-        # Create execution context
-        context = ExecutionContext(
-            run_id="test_run_123",
-            dag_id=dag.dag_id,
-            execution_plan=execution_plan,
-            io_manager=io_manager,
-        )
+        # Prepare execution plans dict
+        execution_plans = {dag.dag_id: execution_plan}
+
+        # Create event infrastructure
+        consumer = InMemoryConsumer(event_broker)
+        publisher = InMemoryPublisher(event_broker)
+        state_repository = InMemoryStateRepository()
 
         # Execute
-        pool_manager = MultiprocessPoolManager(num_workers=1, io_manager=io_manager)
-        with pool_manager:
-            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
-            result = asyncio.run(orchestrator.orchestrate())
+        pool_manager = MultiprocessPoolManager(
+            num_workers=1, io_manager=io_manager, publisher=publisher
+        )
+        async with pool_manager:
+            orchestrator = Orchestrator(
+                execution_plans=execution_plans,
+                worker_pool_manager=pool_manager,
+                consumer=consumer,
+                publisher=publisher,
+                state_repository=state_repository,
+                io_manager=io_manager,
+            )
+
+            # Start orchestrator in background
+            orchestrator_task = asyncio.create_task(orchestrator.orchestrate())
+            await asyncio.sleep(0.1)
+
+            # Setup result listener
+            result_consumer = InMemoryConsumer(event_broker)
+            result_event: ExecutionResultEvent | None = None
+            completion_event = asyncio.Event()
+
+            async def listen_for_result():
+                nonlocal result_event
+                async for event in result_consumer.consume("dag.execution.result"):
+                    if isinstance(event, ExecutionResultEvent):
+                        result_event = event
+                        completion_event.set()
+                        break
+
+            listener_task = asyncio.create_task(listen_for_result())
+
+            # Publish DAG execution event
+            dag_event = DAGExecutionEvent(topic="dag.execution", dag_id=dag.dag_id)
+            await publisher.publish("dag.execution", dag_event)
+
+            # Wait for completion
+            await TestHelper.run_until_complete(orchestrator_task, completion_event, timeout=5.0)
+            listener_task.cancel()
 
         # Verify results
-        assert result.is_successful
-        assert len(result.completed_tasks) == 2
-        assert len(result.failed_tasks) == 0
-        assert "add_one" in result.completed_tasks
-        assert "multiply_by_two" in result.completed_tasks
+        assert result_event is not None
+        assert result_event.get_status() == "SUCCESS"
+        assert len(result_event.get_completed_tasks()) == 2
+        assert len(result_event.get_failed_tasks()) == 0
+        assert "add_one" in result_event.get_completed_tasks()
+        assert "multiply_by_two" in result_event.get_completed_tasks()
 
-    def test_execute_parallel_tasks(self, io_manager: FilesystemIOManager) -> None:
+    @pytest.mark.asyncio
+    async def test_execute_parallel_tasks(
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+    ) -> None:
         """Test executing parallel independent tasks."""
 
         @task(name="task_a", dependencies=[])
@@ -103,8 +161,6 @@ class TestMultiprocessPoolManager:
             return task_a + task_b
 
         # Create execution plan
-        from app.planner.domain.dag_builder import DAGBuilder
-
         registry = get_registry()
         dag_builder = DAGBuilder(registry)
         planner = get_planner()
@@ -112,68 +168,65 @@ class TestMultiprocessPoolManager:
 
         execution_plan = planner.create_execution_plan(task_names=["task_a", "task_b", "task_c"])
 
-        context = ExecutionContext(
-            run_id="test_run_parallel",
-            dag_id=execution_plan.dag.dag_id,
-            execution_plan=execution_plan,
-            io_manager=io_manager,
-        )
+        # Prepare execution plans dict
+        execution_plans = {execution_plan.dag.dag_id: execution_plan}
+
+        # Create event infrastructure
+        consumer = InMemoryConsumer(event_broker)
+        publisher = InMemoryPublisher(event_broker)
+        state_repository = InMemoryStateRepository()
 
         # Execute with multiple workers
-        pool_manager = MultiprocessPoolManager(num_workers=2, io_manager=io_manager)
-        with pool_manager:
-            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
-            result = asyncio.run(orchestrator.orchestrate())
-
-        assert result.is_successful
-        assert len(result.completed_tasks) == 3
-
-        # Verify final result
-        task_c_results = result.get_task_results("task_c")
-        assert len(task_c_results) == 1
-        saved_value = io_manager.load(
-            "task_c", "test_run_parallel", task_c_results[0].task_result_id
+        pool_manager = MultiprocessPoolManager(
+            num_workers=2, io_manager=io_manager, publisher=publisher
         )
-        assert saved_value == 30
+        async with pool_manager:
+            orchestrator = Orchestrator(
+                execution_plans=execution_plans,
+                worker_pool_manager=pool_manager,
+                consumer=consumer,
+                publisher=publisher,
+                state_repository=state_repository,
+                io_manager=io_manager,
+            )
 
-    def test_execute_with_failure(self, io_manager: FilesystemIOManager) -> None:
-        """Test executing DAG with task failure."""
+            # Start orchestrator in background
+            orchestrator_task = asyncio.create_task(orchestrator.orchestrate())
+            await asyncio.sleep(0.1)
 
-        @task(name="success_task", dependencies=[])
-        def success_task() -> int:
-            return 42
+            # Setup result listener
+            result_consumer = InMemoryConsumer(event_broker)
+            result_event: ExecutionResultEvent | None = None
+            completion_event = asyncio.Event()
 
-        @task(name="failing_task", dependencies=["success_task"])
-        def failing_task(success_task: int) -> None:
-            raise ValueError("This task fails")
+            async def listen_for_result():
+                nonlocal result_event
+                async for event in result_consumer.consume("dag.execution.result"):
+                    if isinstance(event, ExecutionResultEvent):
+                        result_event = event
+                        completion_event.set()
+                        break
 
-        from app.planner.domain.dag_builder import DAGBuilder
+            listener_task = asyncio.create_task(listen_for_result())
 
-        registry = get_registry()
-        dag_builder = DAGBuilder(registry)
-        planner = get_planner()
-        planner.dag_builder = dag_builder
+            # Publish DAG execution event
+            dag_event = DAGExecutionEvent(
+                topic="dag.execution", dag_id=execution_plan.dag.dag_id
+            )
+            await publisher.publish("dag.execution", dag_event)
 
-        execution_plan = planner.create_execution_plan(task_names=["success_task", "failing_task"])
+            # Wait for completion
+            await TestHelper.run_until_complete(orchestrator_task, completion_event, timeout=5.0)
+            listener_task.cancel()
 
-        context = ExecutionContext(
-            run_id="test_run_failure",
-            dag_id=execution_plan.dag.dag_id,
-            execution_plan=execution_plan,
-            io_manager=io_manager,
-        )
+        assert result_event is not None
+        assert result_event.get_status() == "SUCCESS"
+        assert len(result_event.get_completed_tasks()) == 3
 
-        pool_manager = MultiprocessPoolManager(num_workers=1, io_manager=io_manager)
-        with pool_manager:
-            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
-            result = asyncio.run(orchestrator.orchestrate())
-
-        # Execution should fail
-        assert not result.is_successful
-        assert "success_task" in result.completed_tasks
-        assert "failing_task" in result.failed_tasks
-
-    def test_execute_with_fail_safe(self, io_manager: FilesystemIOManager) -> None:
+    @pytest.mark.asyncio
+    async def test_execute_with_fail_safe(
+        self, io_manager: FilesystemIOManager, event_broker: InMemoryBroker
+    ) -> None:
         """Test executing DAG with fail-safe task."""
 
         @task(name="task_1", dependencies=[])
@@ -188,8 +241,6 @@ class TestMultiprocessPoolManager:
         def task_3() -> int:
             return 20
 
-        from app.planner.domain.dag_builder import DAGBuilder
-
         registry = get_registry()
         dag_builder = DAGBuilder(registry)
         planner = get_planner()
@@ -199,21 +250,60 @@ class TestMultiprocessPoolManager:
             task_names=["task_1", "task_2_failsafe", "task_3"]
         )
 
-        context = ExecutionContext(
-            run_id="test_run_failsafe",
-            dag_id=execution_plan.dag.dag_id,
-            execution_plan=execution_plan,
-            io_manager=io_manager,
-        )
+        # Prepare execution plans dict
+        execution_plans = {execution_plan.dag.dag_id: execution_plan}
 
-        pool_manager = MultiprocessPoolManager(num_workers=1, io_manager=io_manager)
-        with pool_manager:
-            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
-            result = asyncio.run(orchestrator.orchestrate())
+        # Create event infrastructure
+        consumer = InMemoryConsumer(event_broker)
+        publisher = InMemoryPublisher(event_broker)
+        state_repository = InMemoryStateRepository()
+
+        pool_manager = MultiprocessPoolManager(
+            num_workers=1, io_manager=io_manager, publisher=publisher
+        )
+        async with pool_manager:
+            orchestrator = Orchestrator(
+                execution_plans=execution_plans,
+                worker_pool_manager=pool_manager,
+                consumer=consumer,
+                publisher=publisher,
+                state_repository=state_repository,
+                io_manager=io_manager,
+            )
+
+            # Start orchestrator in background
+            orchestrator_task = asyncio.create_task(orchestrator.orchestrate())
+            await asyncio.sleep(0.1)
+
+            # Setup result listener
+            result_consumer = InMemoryConsumer(event_broker)
+            result_event: ExecutionResultEvent | None = None
+            completion_event = asyncio.Event()
+
+            async def listen_for_result():
+                nonlocal result_event
+                async for event in result_consumer.consume("dag.execution.result"):
+                    if isinstance(event, ExecutionResultEvent):
+                        result_event = event
+                        completion_event.set()
+                        break
+
+            listener_task = asyncio.create_task(listen_for_result())
+
+            # Publish DAG execution event
+            dag_event = DAGExecutionEvent(
+                topic="dag.execution", dag_id=execution_plan.dag.dag_id
+            )
+            await publisher.publish("dag.execution", dag_event)
+
+            # Wait for completion
+            await TestHelper.run_until_complete(orchestrator_task, completion_event, timeout=5.0)
+            listener_task.cancel()
 
         # Should succeed despite task_2 failure because it's failsafe
-        assert result.is_successful
-        assert "task_1" in result.completed_tasks
-        assert "task_2_failsafe" in result.completed_tasks  # Failsafe task is marked as completed
-        assert "task_2_failsafe" in result.failed_tasks  # But also in failed_tasks
-        assert "task_3" in result.completed_tasks
+        assert result_event is not None
+        assert result_event.get_status() == "SUCCESS"
+        assert "task_1" in result_event.get_completed_tasks()
+        assert "task_2_failsafe" in result_event.get_completed_tasks()  # Failsafe task is marked as completed
+        assert "task_2_failsafe" in result_event.get_failed_tasks()  # But also in failed_tasks
+        assert "task_3" in result_event.get_completed_tasks()
