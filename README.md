@@ -774,7 +774,8 @@ def streaming_task(batch_size: int) -> Generator[list, None, None]:
 ### 7. Executor로 DAG 실행하기
 
 ```python
-from app.executor import MultiprocessExecutor
+import asyncio
+from app.executor import Orchestrator, MultiprocessPoolManager
 from app.executor.domain.execution_context import ExecutionContext
 from app.io_manager.infrastructure.filesystem_io_manager import FilesystemIOManager
 from app.planner import get_planner
@@ -803,9 +804,11 @@ context = ExecutionContext(
     io_manager=io_manager,
 )
 
-# Executor 생성 및 실행
-executor = MultiprocessExecutor(num_workers=4)  # 4개의 worker 프로세스
-result = executor.run(context)
+# Worker Pool Manager와 Orchestrator를 사용한 실행
+pool_manager = MultiprocessPoolManager(num_workers=4, io_manager=io_manager)
+with pool_manager:
+    orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
+    result = asyncio.run(orchestrator.orchestrate())
 
 # 결과 확인
 print(f"Status: {result.status}")
@@ -966,8 +969,8 @@ await scheduler.start()
 - [x] ~~Task DAG 실행 엔진~~ (Executor 완료)
   - [x] ~~ExecutableTask 도메인 모델~~ (완료)
   - [x] ~~Worker 프로세스 구현~~ (완료)
-  - [x] ~~Orchestrator 구현~~ (완료)
-  - [x] ~~MultiprocessExecutor 통합~~ (완료)
+  - [x] ~~Orchestrator 도메인 구현~~ (완료)
+  - [x] ~~MultiprocessPoolManager 통합~~ (완료)
 - [ ] MongoDB I/O Manager 어댑터
 - [ ] 분산 스케줄링 지원
 - [ ] 모니터링 및 메트릭
