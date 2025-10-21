@@ -1,12 +1,14 @@
 """Simple integration tests for the executor."""
 
+import asyncio
 from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 
 from app.executor.domain.execution_context import ExecutionContext
-from app.executor.infrastructure.multiprocess_executor import MultiprocessExecutor
+from app.executor.domain.orchestrator import Orchestrator
+from app.executor.infrastructure.multiprocess_pool_manager import MultiprocessPoolManager
 from app.io_manager.infrastructure.filesystem_io_manager import FilesystemIOManager
 from app.planner.domain.dag_builder import DAGBuilder
 from app.task_registry import get_registry, task
@@ -56,8 +58,10 @@ class TestSimpleIntegration:
         )
 
         # Execute (will use global registry by default)
-        executor = MultiprocessExecutor(num_workers=1, io_manager=io_manager)
-        result = executor.run(context)
+        pool_manager = MultiprocessPoolManager(num_workers=1, io_manager=io_manager)
+        with pool_manager:
+            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
+            result = asyncio.run(orchestrator.orchestrate())
 
         # Verify
         assert result.is_successful
@@ -93,8 +97,10 @@ class TestSimpleIntegration:
         )
 
         # Execute
-        executor = MultiprocessExecutor(num_workers=1, io_manager=io_manager)
-        result = executor.run(context)
+        pool_manager = MultiprocessPoolManager(num_workers=1, io_manager=io_manager)
+        with pool_manager:
+            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
+            result = asyncio.run(orchestrator.orchestrate())
 
         # Verify
         assert result.is_successful

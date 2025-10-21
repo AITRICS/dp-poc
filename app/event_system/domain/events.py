@@ -228,3 +228,376 @@ class DAGExecutionEvent(EventBase):
             return None
         metadata = self.content["run_metadata"].item()
         return dict(metadata) if metadata is not None else None
+
+
+class TaskResultEvent(EventBase):
+    """Event to signal task execution result from Worker to Orchestrator.
+
+    This event carries task execution result information including status,
+    timing, retry information, and streaming details.
+
+    Example:
+        # Success result
+        event = TaskResultEvent(
+            topic="task.result.success",
+            run_id="run_123",
+            task_name="extract",
+            task_result_id="result_456",
+            status="SUCCESS",
+            execution_time=1.5,
+            retry_count=0
+        )
+
+        # Streaming result
+        event = TaskResultEvent(
+            topic="task.result.streaming",
+            run_id="run_123",
+            task_name="stream_data",
+            task_result_id="result_789",
+            status="SUCCESS",
+            execution_time=0.5,
+            retry_count=0,
+            is_streaming=True,
+            stream_index=0,
+            stream_complete=False
+        )
+    """
+
+    def __init__(
+        self,
+        topic: str,
+        run_id: str,
+        task_name: str,
+        task_result_id: str,
+        status: str,
+        execution_time: float,
+        retry_count: int = 0,
+        error_message: str | None = None,
+        error_type: str | None = None,
+        is_streaming: bool = False,
+        stream_index: int | None = None,
+        stream_complete: bool | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize TaskResultEvent with execution result information.
+
+        Args:
+            topic: Event topic (e.g., "task.result.success")
+            run_id: Unique identifier for the pipeline run
+            task_name: Name of the executed task
+            task_result_id: Unique identifier for this execution result
+            status: Execution status (SUCCESS, FAILED, TIMEOUT, CANCELLED)
+            execution_time: Time taken to execute in seconds
+            retry_count: Number of retries attempted
+            error_message: Error message if task failed (optional)
+            error_type: Type of error that occurred (optional)
+            is_streaming: Whether this result is part of streaming output
+            stream_index: Index of this result in stream (optional)
+            stream_complete: Whether this is the last result in stream (optional)
+            metadata: Additional metadata (optional)
+        """
+        kwargs: dict[str, Any] = {
+            "run_id": run_id,
+            "task_name": task_name,
+            "task_result_id": task_result_id,
+            "status": status,
+            "execution_time": execution_time,
+            "retry_count": retry_count,
+            "error_message": error_message,
+            "error_type": error_type,
+            "is_streaming": is_streaming,
+            "stream_index": stream_index,
+            "stream_complete": stream_complete,
+            "metadata": [metadata] if metadata is not None else None,
+        }
+
+        super().__init__(topic=topic, **kwargs)
+
+    def get_run_id(self) -> str:
+        """Get run ID from event content."""
+        if self.content is None:
+            raise ValueError("TaskResultEvent content is None")
+        return str(self.content["run_id"].item())
+
+    def get_task_name(self) -> str:
+        """Get task name from event content."""
+        if self.content is None:
+            raise ValueError("TaskResultEvent content is None")
+        return str(self.content["task_name"].item())
+
+    def get_task_result_id(self) -> str:
+        """Get task result ID from event content."""
+        if self.content is None:
+            raise ValueError("TaskResultEvent content is None")
+        return str(self.content["task_result_id"].item())
+
+    def get_status(self) -> str:
+        """Get status from event content."""
+        if self.content is None:
+            raise ValueError("TaskResultEvent content is None")
+        return str(self.content["status"].item())
+
+    def get_execution_time(self) -> float:
+        """Get execution time from event content."""
+        if self.content is None:
+            raise ValueError("TaskResultEvent content is None")
+        return float(self.content["execution_time"].item())
+
+    def get_retry_count(self) -> int:
+        """Get retry count from event content."""
+        if self.content is None:
+            raise ValueError("TaskResultEvent content is None")
+        return int(self.content["retry_count"].item())
+
+    def get_error_message(self) -> str | None:
+        """Get error message from event content."""
+        if self.content is None:
+            return None
+        msg = self.content["error_message"].item()
+        return str(msg) if msg is not None else None
+
+    def get_error_type(self) -> str | None:
+        """Get error type from event content."""
+        if self.content is None:
+            return None
+        err_type = self.content["error_type"].item()
+        return str(err_type) if err_type is not None else None
+
+    def get_is_streaming(self) -> bool:
+        """Get is_streaming flag from event content."""
+        if self.content is None:
+            return False
+        return bool(self.content["is_streaming"].item())
+
+    def get_stream_index(self) -> int | None:
+        """Get stream index from event content."""
+        if self.content is None:
+            return None
+        idx = self.content["stream_index"].item()
+        return int(idx) if idx is not None else None
+
+    def get_stream_complete(self) -> bool | None:
+        """Get stream_complete flag from event content."""
+        if self.content is None:
+            return None
+        complete = self.content["stream_complete"].item()
+        return bool(complete) if complete is not None else None
+
+    def get_metadata(self) -> dict[str, Any] | None:
+        """Get metadata dict from event content."""
+        if self.content is None:
+            return None
+        metadata = self.content["metadata"].item()
+        return dict(metadata) if metadata is not None else None
+
+
+class TaskSubmitEvent(EventBase):
+    """Event to submit a task for execution.
+
+    This event carries all information needed to execute a task.
+    When received by the Orchestrator, it submits the task to the worker pool.
+
+    Example:
+        event = TaskSubmitEvent(
+            topic="task.submit",
+            run_id="run_123",
+            task_name="extract",
+            task_result_id="result_456",
+            inputs={"param1": ("upstream_task", "result_id")},
+            retry_count=0,
+            max_retries=3
+        )
+    """
+
+    def __init__(
+        self,
+        topic: str,
+        run_id: str,
+        task_name: str,
+        task_result_id: str,
+        inputs: dict[str, tuple[str, str]] | None = None,
+        retry_count: int = 0,
+        max_retries: int = 0,
+    ) -> None:
+        """Initialize TaskSubmitEvent with task execution information.
+
+        Args:
+            topic: Event topic (e.g., "task.submit")
+            run_id: Unique identifier for the pipeline run
+            task_name: Name of the task to execute
+            task_result_id: Unique identifier for this execution result
+            inputs: Dictionary mapping parameter names to input locations
+            retry_count: Current retry attempt number
+            max_retries: Maximum number of retries allowed
+        """
+        # Convert inputs dict to a serializable format
+        # inputs_list will be a list of dicts: [{"param": "name", "upstream": "task", "result_id": "id"}]
+        inputs_list = []
+        if inputs:
+            for param_name, (upstream_task, result_id) in inputs.items():
+                inputs_list.append({
+                    "param": param_name,
+                    "upstream": upstream_task,
+                    "result_id": result_id,
+                })
+
+        kwargs: dict[str, Any] = {
+            "run_id": run_id,
+            "task_name": task_name,
+            "task_result_id": task_result_id,
+            "inputs": [inputs_list] if inputs_list else None,
+            "retry_count": retry_count,
+            "max_retries": max_retries,
+        }
+
+        super().__init__(topic=topic, **kwargs)
+
+    def get_run_id(self) -> str:
+        """Get run ID from event content."""
+        if self.content is None:
+            raise ValueError("TaskSubmitEvent content is None")
+        return str(self.content["run_id"].item())
+
+    def get_task_name(self) -> str:
+        """Get task name from event content."""
+        if self.content is None:
+            raise ValueError("TaskSubmitEvent content is None")
+        return str(self.content["task_name"].item())
+
+    def get_task_result_id(self) -> str:
+        """Get task result ID from event content."""
+        if self.content is None:
+            raise ValueError("TaskSubmitEvent content is None")
+        return str(self.content["task_result_id"].item())
+
+    def get_inputs(self) -> dict[str, tuple[str, str]]:
+        """Get inputs dict from event content."""
+        if self.content is None:
+            return {}
+        
+        inputs_list = self.content["inputs"].item()
+        if inputs_list is None:
+            return {}
+        
+        # Convert list of dicts back to inputs dict
+        inputs: dict[str, tuple[str, str]] = {}
+        for item in inputs_list:
+            param_name = item["param"]
+            upstream_task = item["upstream"]
+            result_id = item["result_id"]
+            inputs[param_name] = (upstream_task, result_id)
+        
+        return inputs
+
+    def get_retry_count(self) -> int:
+        """Get retry count from event content."""
+        if self.content is None:
+            return 0
+        return int(self.content["retry_count"].item())
+
+    def get_max_retries(self) -> int:
+        """Get max retries from event content."""
+        if self.content is None:
+            return 0
+        return int(self.content["max_retries"].item())
+
+
+class ExecutionResultEvent(EventBase):
+    """Event to signal DAG execution completion.
+
+    This event is published when a DAG execution completes (successfully or not).
+    It contains summary information about the execution including status,
+    completed/failed tasks, and timing information.
+
+    Example:
+        event = ExecutionResultEvent(
+            topic="dag.execution.result",
+            run_id="run_123",
+            dag_id="my_dag",
+            status="SUCCESS",
+            completed_tasks=["extract", "transform", "load"],
+            failed_tasks=[],
+            total_execution_time=10.5,
+            metadata={"triggered_by": "scheduler"}
+        )
+    """
+
+    def __init__(
+        self,
+        topic: str,
+        run_id: str,
+        dag_id: str,
+        status: str,
+        completed_tasks: list[str],
+        failed_tasks: list[str],
+        total_execution_time: float,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize ExecutionResultEvent with DAG execution result.
+
+        Args:
+            topic: Event topic (e.g., "dag.execution.result")
+            run_id: Unique identifier for the pipeline run
+            dag_id: DAG identifier
+            status: Final execution status (SUCCESS, FAILED)
+            completed_tasks: List of successfully completed task names
+            failed_tasks: List of failed task names
+            total_execution_time: Total execution time in seconds
+            metadata: Additional metadata (optional)
+        """
+        kwargs: dict[str, Any] = {
+            "run_id": run_id,
+            "dag_id": dag_id,
+            "status": status,
+            "completed_tasks": [completed_tasks],
+            "failed_tasks": [failed_tasks],
+            "total_execution_time": total_execution_time,
+            "metadata": [metadata] if metadata is not None else None,
+        }
+
+        super().__init__(topic=topic, **kwargs)
+
+    def get_run_id(self) -> str:
+        """Get run ID from event content."""
+        if self.content is None:
+            raise ValueError("ExecutionResultEvent content is None")
+        return str(self.content["run_id"].item())
+
+    def get_dag_id(self) -> str:
+        """Get DAG ID from event content."""
+        if self.content is None:
+            raise ValueError("ExecutionResultEvent content is None")
+        return str(self.content["dag_id"].item())
+
+    def get_status(self) -> str:
+        """Get status from event content."""
+        if self.content is None:
+            raise ValueError("ExecutionResultEvent content is None")
+        return str(self.content["status"].item())
+
+    def get_completed_tasks(self) -> list[str]:
+        """Get completed tasks list from event content."""
+        if self.content is None:
+            return []
+        tasks = self.content["completed_tasks"].item()
+        return list(tasks) if tasks is not None else []
+
+    def get_failed_tasks(self) -> list[str]:
+        """Get failed tasks list from event content."""
+        if self.content is None:
+            return []
+        tasks = self.content["failed_tasks"].item()
+        return list(tasks) if tasks is not None else []
+
+    def get_total_execution_time(self) -> float:
+        """Get total execution time from event content."""
+        if self.content is None:
+            raise ValueError("ExecutionResultEvent content is None")
+        return float(self.content["total_execution_time"].item())
+
+    def get_metadata(self) -> dict[str, Any] | None:
+        """Get metadata dict from event content."""
+        if self.content is None:
+            return None
+        metadata = self.content["metadata"].item()
+        return dict(metadata) if metadata is not None else None

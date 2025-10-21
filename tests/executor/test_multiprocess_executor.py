@@ -1,12 +1,14 @@
-"""Integration tests for MultiprocessExecutor."""
+"""Integration tests for Orchestrator and MultiprocessPoolManager."""
 
+import asyncio
 from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 
 from app.executor.domain.execution_context import ExecutionContext
-from app.executor.infrastructure.multiprocess_executor import MultiprocessExecutor
+from app.executor.domain.orchestrator import Orchestrator
+from app.executor.infrastructure.multiprocess_pool_manager import MultiprocessPoolManager
 from app.io_manager.infrastructure.filesystem_io_manager import FilesystemIOManager
 from app.planner import get_planner
 from app.task_registry import get_registry, task
@@ -27,21 +29,21 @@ def clean_global_registry() -> Generator[None, None, None]:
     registry.clear()
 
 
-class TestMultiprocessExecutor:
-    """Test suite for MultiprocessExecutor integration."""
+class TestMultiprocessPoolManager:
+    """Test suite for Orchestrator and MultiprocessPoolManager integration."""
 
-    def test_executor_initialization(self, io_manager: FilesystemIOManager) -> None:
-        """Test executor initialization."""
-        executor = MultiprocessExecutor(num_workers=2, io_manager=io_manager)
+    def test_pool_manager_initialization(self, io_manager: FilesystemIOManager) -> None:
+        """Test pool manager initialization."""
+        pool_manager = MultiprocessPoolManager(num_workers=2, io_manager=io_manager)
 
-        assert executor.num_workers == 2
-        assert executor.io_manager is io_manager
-        assert len(executor.workers) == 0  # Not started yet
+        assert pool_manager.num_workers == 2
+        assert pool_manager.io_manager is io_manager
+        assert len(pool_manager.workers) == 0  # Not started yet
 
-    def test_executor_invalid_workers_raises_error(self) -> None:
+    def test_pool_manager_invalid_workers_raises_error(self) -> None:
         """Test that invalid num_workers raises error."""
         with pytest.raises(ValueError, match="num_workers must be at least 1"):
-            MultiprocessExecutor(num_workers=0)
+            MultiprocessPoolManager(num_workers=0)
 
     def test_execute_simple_dag(self, io_manager: FilesystemIOManager) -> None:
         """Test executing a simple DAG."""
@@ -73,8 +75,10 @@ class TestMultiprocessExecutor:
         )
 
         # Execute
-        executor = MultiprocessExecutor(num_workers=1, io_manager=io_manager)
-        result = executor.run(context)
+        pool_manager = MultiprocessPoolManager(num_workers=1, io_manager=io_manager)
+        with pool_manager:
+            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
+            result = asyncio.run(orchestrator.orchestrate())
 
         # Verify results
         assert result.is_successful
@@ -116,8 +120,10 @@ class TestMultiprocessExecutor:
         )
 
         # Execute with multiple workers
-        executor = MultiprocessExecutor(num_workers=2, io_manager=io_manager)
-        result = executor.run(context)
+        pool_manager = MultiprocessPoolManager(num_workers=2, io_manager=io_manager)
+        with pool_manager:
+            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
+            result = asyncio.run(orchestrator.orchestrate())
 
         assert result.is_successful
         assert len(result.completed_tasks) == 3
@@ -157,8 +163,10 @@ class TestMultiprocessExecutor:
             io_manager=io_manager,
         )
 
-        executor = MultiprocessExecutor(num_workers=1, io_manager=io_manager)
-        result = executor.run(context)
+        pool_manager = MultiprocessPoolManager(num_workers=1, io_manager=io_manager)
+        with pool_manager:
+            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
+            result = asyncio.run(orchestrator.orchestrate())
 
         # Execution should fail
         assert not result.is_successful
@@ -198,8 +206,10 @@ class TestMultiprocessExecutor:
             io_manager=io_manager,
         )
 
-        executor = MultiprocessExecutor(num_workers=1, io_manager=io_manager)
-        result = executor.run(context)
+        pool_manager = MultiprocessPoolManager(num_workers=1, io_manager=io_manager)
+        with pool_manager:
+            orchestrator = Orchestrator(context=context, worker_pool_manager=pool_manager)
+            result = asyncio.run(orchestrator.orchestrate())
 
         # Should succeed despite task_2 failure because it's failsafe
         assert result.is_successful
